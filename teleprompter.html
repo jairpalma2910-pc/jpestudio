@@ -166,6 +166,18 @@ html,body{width:100%;height:100%;overflow:hidden;background:#6B1020;font-family:
   background:rgba(0,0,0,0.92);border:2px solid #C9A84C;border-radius:12px;
   padding:12px;text-align:center;display:none;}
 #qrPanel p{color:#C9A84C;font-size:10px;font-family:Arial;margin-top:6px;letter-spacing:1px;}
+
+/* QR CONTROL REMOTO */
+#qrControlPanel {
+  position:fixed; bottom:80px; right:16px; z-index:600;
+  background:rgba(0,0,0,0.95); border:2px solid #C9A84C;
+  border-radius:14px; padding:16px; text-align:center;
+  display:none; min-width:180px;
+}
+#qrControlPanel h4 { color:#C9A84C; font-size:11px; letter-spacing:2px; margin-bottom:10px; }
+#qrCanvas { border-radius:8px; }
+#qrControlPanel p { color:#aaa; font-size:10px; margin-top:8px; line-height:1.5; }
+#remoteStatus { font-size:11px; color:#81c784; margin-top:6px; display:none; }
 </style>
 </head>
 <body>
@@ -219,6 +231,14 @@ iVBORw0KGgoAAAANSUhEUgAABDgAAAQ4CAYAAADsEGyPAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAAB
 <div id="vozStatus">
   🎤 ESCUCHANDO
   <span id="vozTexto"></span>
+</div>
+
+<!-- QR CONTROL REMOTO -->
+<div id="qrControlPanel" class="widget">
+  <h4>📱 CONTROL REMOTO</h4>
+  <canvas id="qrCanvas"></canvas>
+  <p>Escanea con tu cel<br>para controlar</p>
+  <div id="remoteStatus">✓ Cel conectado</div>
 </div>
 
 <!-- SCROLLER -->
@@ -373,6 +393,10 @@ iVBORw0KGgoAAAANSUhEUgAABDgAAAQ4CAYAAADsEGyPAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAAB
   <button class="pb" onclick="togEl('reloj',this)" id="btnReloj">🕐 Reloj — Mostrar</button>
   <button class="pb" onclick="togCrono(this)" id="btnCrono" style="margin-top:4px;">⏱ Cronómetro — Mostrar</button>
   <button class="pb" onclick="togQR(this)" id="btnQR" style="margin-top:4px;">📱 Control QR — Mostrar</button>
+
+  <h4>CONTROL REMOTO QR</h4>
+  <button class="pb" onclick="toggleQRControl(this)" id="btnQRControl">📱 Mostrar QR control</button>
+  <p style="font-size:10px;color:#666;margin-top:3px;">Escanea con tu cel para controlar desde ahí</p>
 
   <h4>LOGO</h4>
   <button class="pb" onclick="toggleLogo()">Mostrar / Ocultar logo</button>
@@ -828,6 +852,149 @@ function saveHTML(){
   a.download='teleprompter_sitt_guardado.html';
   a.click();
 }
+// ── WEBSOCKET CONTROL REMOTO ──
+var wsRemote = null;
+var sessionId = 'sitt_' + Math.random().toString(36).substr(2,8);
+var WS_URL = 'wss://jpestudio-api.onrender.com/ws';
+var remoteConnected = false;
+
+function connectRemoteWS() {
+  wsRemote = new WebSocket(WS_URL + '?session=' + sessionId + '&role=screen');
+
+  wsRemote.onopen = function() {
+    console.log('WebSocket conectado como pantalla');
+  };
+
+  wsRemote.onmessage = function(e) {
+    try {
+      var msg = JSON.parse(e.data);
+      if (msg.type === 'remote_connected') {
+        remoteConnected = true;
+        var rs = document.getElementById('remoteStatus');
+        if (rs) rs.style.display = 'block';
+      }
+      if (msg.action === 'toggle') togglePlay();
+      else if (msg.action === 'up') goUp();
+      else if (msg.action === 'down') goDown();
+      else if (msg.action === 'stop') stopFn();
+      else if (msg.action === 'speed') {
+        spd = parseInt(msg.speed) || spd;
+        var sl = document.querySelector('#bar input[type=range]');
+        if (sl) sl.value = spd;
+        document.getElementById('spdv').textContent = spd;
+      }
+      // Enviar estado actual de vuelta
+      sendState();
+    } catch(e) {}
+  };
+
+  wsRemote.onclose = function() {
+    setTimeout(connectRemoteWS, 3000);
+  };
+}
+
+function sendState() {
+  if (wsRemote && wsRemote.readyState === 1) {
+    wsRemote.send(JSON.stringify({ type: 'state', playing: playing, speed: spd }));
+  }
+}
+
+function toggleQRControl(btn) {
+  var panel = document.getElementById('qrControlPanel');
+  if (panel.style.display === 'none' || panel.style.display === '') {
+    panel.style.display = 'block';
+    if (btn) { btn.textContent = '📱 Ocultar QR control'; btn.style.background = '#8a1515'; }
+    generateQRControl();
+    if (!wsRemote) connectRemoteWS();
+  } else {
+    panel.style.display = 'none';
+    if (btn) { btn.textContent = '📱 Mostrar QR control'; btn.style.background = '#2a2a2a'; }
+  }
+}
+
+function generateQRControl() {
+  var remoteURL = 'https://jairpalma2910-pc.github.io/jpestudio/remote.html?s=' + sessionId;
+  var canvas = document.getElementById('qrCanvas');
+  if (!canvas) return;
+
+  // Dibujar QR manual simple con canvas (patrón de puntos)
+  var size = 140;
+  canvas.width = size;
+  canvas.height = size;
+  var ctx = canvas.getContext('2d');
+
+  // Fondo blanco
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, size, size);
+
+  // Mostrar URL en texto para escanear manualmente
+  ctx.fillStyle = '#000';
+  ctx.font = 'bold 9px Arial';
+  ctx.textAlign = 'center';
+
+  // Intentar cargar QRCode.js si está disponible
+  if (typeof QRCode !== 'undefined') {
+    QRCode.toCanvas(canvas, remoteURL, { width: 140, margin: 1 }, function(err) {
+      if (err) showURLFallback(ctx, remoteURL, size);
+    });
+  } else {
+    // Cargar la librería dinámicamente
+    var script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+    script.onload = function() {
+      var div = document.createElement('div');
+      div.style.display = 'none';
+      document.body.appendChild(div);
+      try {
+        new QRCode(div, { text: remoteURL, width: 140, height: 140 });
+        setTimeout(function() {
+          var img = div.querySelector('img');
+          if (img) {
+            var i = new Image();
+            i.onload = function() { ctx.drawImage(i, 0, 0, 140, 140); };
+            i.src = img.src;
+          }
+        }, 500);
+      } catch(e) { showURLFallback(ctx, remoteURL, size); }
+    };
+    script.onerror = function() { showURLFallback(ctx, remoteURL, size); };
+    document.head.appendChild(script);
+  }
+
+  // Mostrar URL debajo del canvas
+  var urlEl = document.createElement('p');
+  urlEl.style.cssText = 'color:#C9A84C;font-size:9px;word-break:break-all;margin-top:6px;max-width:140px;';
+  urlEl.textContent = remoteURL;
+  var panel = document.getElementById('qrControlPanel');
+  var existing = panel.querySelector('.remote-url');
+  if (existing) existing.remove();
+  urlEl.className = 'remote-url';
+  panel.appendChild(urlEl);
+}
+
+function showURLFallback(ctx, url, size) {
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0,0,size,size);
+  ctx.fillStyle = '#000';
+  ctx.font = '8px Arial';
+  ctx.textAlign = 'center';
+  var words = url.split('/');
+  ctx.fillText('Abre esta URL', size/2, 20);
+  ctx.fillText('en tu cel:', size/2, 35);
+  ctx.font = 'bold 7px Arial';
+  ctx.fillStyle = '#6B1020';
+  var y = 55;
+  var chunk = 22;
+  for(var i=0; i<url.length; i+=chunk) {
+    ctx.fillText(url.substr(i,chunk), size/2, y);
+    y += 14;
+  }
+}
+
+// Iniciar WebSocket al cargar
+window.addEventListener('load', function() {
+  // No conectar hasta que el usuario abra el panel QR
+});
 </script>
 </body>
 </html>
