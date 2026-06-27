@@ -11,7 +11,7 @@ export default function Suggestions() {
   const [sent, setSent] = useState(false)
   const { isAdmin } = useAuth()
 
-  useEffect(() => { if(isAdmin) load() else setLoading(false) }, [])
+  useEffect(() => { if(isAdmin) load(); else setLoading(false); }, [])
 
   const load = async () => {
     try {
