@@ -5,8 +5,8 @@ import Dashboard from './pages/Dashboard'
 import Projects from './pages/Projects'
 import Editor from './pages/Editor'
 import Admin from './pages/Admin'
-import Requests from './pages/Requests'
 import Suggestions from './pages/Suggestions'
+import Present from './pages/Present'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -31,8 +31,8 @@ export default function App() {
           <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
           <Route path="/projects" element={<PrivateRoute><Projects /></PrivateRoute>} />
           <Route path="/editor/:tipo/:id?" element={<PrivateRoute><Editor /></PrivateRoute>} />
-          <Route path="/requests" element={<PrivateRoute><Requests /></PrivateRoute>} />
           <Route path="/suggestions" element={<PrivateRoute><Suggestions /></PrivateRoute>} />
+          <Route path="/present/:id" element={<PrivateRoute><Present /></PrivateRoute>} />
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
           <Route path="*" element={<Navigate to="/dashboard" />} />
         </Routes>
