@@ -1,0 +1,10 @@
+.requests-list { display: flex; flex-direction: column; gap: 12px; }
+.request-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 18px; transition: border 0.2s; }
+.request-card:hover { border-color: rgba(201,168,76,0.4); }
+.request-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.request-proyecto { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.request-tipo { font-size: 12px; color: var(--gold); }
+.request-user { font-size: 12px; color: #888; }
+.request-msg { font-size: 13px; color: #aaa; font-style: italic; margin-bottom: 6px; }
+.request-resp { font-size: 13px; color: #81c784; margin-bottom: 6px; }
+.request-date { font-size: 11px; color: #555; }
