@@ -4,6 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JP Estudio</title>
+  <script>
+    var redirect = sessionStorage.getItem('redirect');
+    if (redirect) {
+      sessionStorage.removeItem('redirect');
+      window.history.replaceState(null, null, '/jpestudio' + redirect);
+    }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
   <script type="module" crossorigin src="/jpestudio/assets/index-x0RbRyO7.js"></script>
