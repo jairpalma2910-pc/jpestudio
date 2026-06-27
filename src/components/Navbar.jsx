@@ -15,7 +15,6 @@ export default function Navbar() {
   const links = [
     { to: '/dashboard', label: '🏠 Inicio', show: true },
     { to: '/projects', label: '📁 Proyectos', show: true },
-    { to: '/requests', label: '📥 Solicitudes', show: true },
     { to: '/suggestions', label: '💡 Sugerencias', show: true },
     { to: '/admin', label: '⚙️ Admin', show: isAdmin },
   ]
