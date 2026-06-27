@@ -34,6 +34,14 @@ export default function Present() {
     }
   }
 
+  // Auto fullscreen cuando carga el iframe
+  const handleIframeLoad = () => {
+    const iframe = iframeRef.current
+    if (iframe?.requestFullscreen) {
+      iframe.requestFullscreen().catch(() => {})
+    }
+  }
+
   const toggleFullscreen = () => {
     const iframe = iframeRef.current
     if (!document.fullscreenElement) {
@@ -62,28 +70,29 @@ export default function Present() {
 
   return (
     <div className="present-page">
-      {/* Barra mínima */}
-      {!fullscreen && (
-        <div className="present-bar">
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/projects')}>← Volver</button>
-          <span className="present-nombre">{nombre}</span>
-          <button
-            className="btn btn-sm"
-            style={{background:'#C9A84C',color:'#000',fontWeight:700}}
-            onClick={toggleFullscreen}
-          >
-            ⛶ Pantalla completa
-          </button>
-        </div>
-      )}
+      {/* Barra flotante - solo visible al mover mouse */}
+      <div className={`present-bar ${fullscreen ? 'present-bar-hidden' : ''}`}
+           onMouseLeave={e => e.currentTarget.classList.add('present-bar-hidden')}
+           onMouseEnter={e => e.currentTarget.classList.remove('present-bar-hidden')}>
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/projects')}>← Volver</button>
+        <span className="present-nombre">{nombre}</span>
+        <button
+          className="btn btn-sm"
+          style={{background:'#C9A84C',color:'#000',fontWeight:700}}
+          onClick={toggleFullscreen}
+        >
+          {fullscreen ? '⊡ Salir' : '⛶ Pantalla completa'}
+        </button>
+      </div>
 
-      <div className="present-frame" style={{top: fullscreen ? 0 : '48px'}}>
+      <div className="present-frame">
         <iframe
           ref={iframeRef}
           src={htmlSrc}
           title={nombre}
           className="present-iframe"
           sandbox="allow-scripts allow-same-origin allow-forms"
+          onLoad={handleIframeLoad}
         />
       </div>
     </div>
