@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JP Estudio — Presentación</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0a0005; color:#fff; font-family:Arial,sans-serif; min-height:100vh; display:flex; align-items:center; justify-content:center; }
+#loading { text-align:center; }
+#loading .logo { font-size:32px; font-weight:900; color:#C9A84C; margin-bottom:16px; }
+#loading p { color:#888; font-size:14px; }
+#error { text-align:center; }
+#error h2 { color:#ef9a9a; font-size:24px; margin-bottom:12px; }
+#error p { color:#888; font-size:14px; }
+#frame { display:none; position:fixed; inset:0; }
+#frame iframe { width:100%; height:100%; border:none; }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="logo">JP</div>
+  <p>Cargando presentación...</p>
+</div>
+
+<div id="error" style="display:none">
+  <h2>🔒 Link inválido o revocado</h2>
+  <p>Este enlace de presentación no está disponible.</p>
+  <p style="margin-top:8px;color:#555;">Contacta al administrador para obtener acceso.</p>
+</div>
+
+<div id="frame">
+  <iframe id="presenter" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+</div>
+
+<script>
+  var token = window.location.pathname.split('/present/')[1] || 
+              window.location.hash.replace('#/present/','') ||
+              new URLSearchParams(window.location.search).get('t');
+
+  if (!token) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error').style.display = 'block';
+  } else {
+    fetch('https://jpestudio-api.onrender.com/api/requests/present/' + token)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('error').style.display = 'block';
+          return;
+        }
+        document.title = data.nombre + ' — JP Estudio';
+        var blob = new Blob([data.html], { type: 'text/html' });
+        var url = URL.createObjectURL(blob);
+        document.getElementById('presenter').src = url;
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('frame').style.display = 'block';
+        // Pantalla completa automático
+        setTimeout(function() {
+          var iframe = document.getElementById('presenter');
+          if (iframe.requestFullscreen) iframe.requestFullscreen();
+        }, 500);
+      })
+      .catch(function() {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').style.display = 'block';
+      });
+  }
+</script>
+</body>
+</html>
