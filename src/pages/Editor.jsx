@@ -16,8 +16,7 @@ export default function Editor() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [showSaveModal, setShowSaveModal] = useState(false)
-  const [showRequestModal, setShowRequestModal] = useState(false)
-  const [requestMsg, setRequestMsg] = useState('')
+
   const [htmlContent, setHtmlContent] = useState('')
   const [fullscreen, setFullscreen] = useState(false)
 
@@ -97,17 +96,7 @@ export default function Editor() {
     }
   }
 
-  const handleRequestDownload = async () => {
-    if (!id) return alert('Guarda el proyecto primero')
-    try {
-      await api.post('/api/requests', { proyecto_id: id, mensaje: requestMsg })
-      alert('✅ Solicitud enviada. El administrador la revisará pronto.')
-      setShowRequestModal(false)
-      setRequestMsg('')
-    } catch (e) {
-      alert(e.response?.data?.error || 'Error al enviar solicitud')
-    }
-  }
+
 
   return (
     <div className="editor-page">
@@ -122,7 +111,7 @@ export default function Editor() {
         <div className="editor-actions">
           {saved && <span className="editor-saved">✓ Guardado</span>}
           <button className="btn btn-outline btn-sm" onClick={() => setShowSaveModal(true)}>💾 Guardar</button>
-          <button className="btn btn-ghost btn-sm" onClick={() => setShowRequestModal(true)}>📥 Solicitar descarga</button>
+
           <button
             className="btn btn-sm"
             style={{background:'#1a1a2e',color:'#C9A84C',border:'1px solid #C9A84C'}}
@@ -168,29 +157,7 @@ export default function Editor() {
         </div>
       )}
 
-      {/* Modal solicitar descarga */}
-      {showRequestModal && (
-        <div className="modal-overlay" onClick={() => setShowRequestModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-title">📥 Solicitar Descarga</div>
-            <p style={{color:'#aaa',fontSize:13,marginBottom:16}}>
-              Se enviará una solicitud al administrador para aprobar la descarga de <strong style={{color:'#fff'}}>"{nombre}"</strong>.
-            </p>
-            <label className="label">Mensaje (opcional)</label>
-            <textarea
-              className="input"
-              style={{height:80,resize:'vertical'}}
-              placeholder="Agrega un comentario si lo necesitas..."
-              value={requestMsg}
-              onChange={e => setRequestMsg(e.target.value)}
-            />
-            <div style={{display:'flex',gap:10,marginTop:20,justifyContent:'flex-end'}}>
-              <button className="btn btn-ghost" onClick={() => setShowRequestModal(false)}>Cancelar</button>
-              <button className="btn btn-gold" onClick={handleRequestDownload}>📤 Enviar solicitud</button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   )
 }
