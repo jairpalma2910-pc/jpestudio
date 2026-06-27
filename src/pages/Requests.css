@@ -8,3 +8,30 @@
 .request-msg { font-size: 13px; color: #aaa; font-style: italic; margin-bottom: 6px; }
 .request-resp { font-size: 13px; color: #81c784; margin-bottom: 6px; }
 .request-date { font-size: 11px; color: #555; }
+
+.present-link {
+  background: rgba(76,175,80,0.1);
+  border: 1px solid rgba(76,175,80,0.3);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: #81c784;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.present-link.revoked {
+  background: rgba(138,21,21,0.1);
+  border-color: rgba(138,21,21,0.3);
+  color: #ef9a9a;
+  justify-content: flex-start;
+}
+.admin-controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
