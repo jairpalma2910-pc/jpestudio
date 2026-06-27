@@ -53,11 +53,7 @@ export default function Dashboard() {
               <span className="quick-icon">📁</span>
               <span>Mis Proyectos</span>
             </div>
-            <div className="quick-card" onClick={() => navigate('/requests')}>
-              <span className="quick-icon">📥</span>
-              <span>Solicitudes</span>
-            </div>
-            <div className="quick-card" onClick={() => navigate('/suggestions')}>
+<div className="quick-card" onClick={() => navigate('/suggestions')}>
               <span className="quick-icon">💡</span>
               <span>Sugerencias</span>
             </div>
