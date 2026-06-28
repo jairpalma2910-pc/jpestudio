@@ -250,10 +250,17 @@ html,body{width:100%;height:100%;overflow:hidden;background:#6B1020;font-family:
   padding: 12px;
   box-shadow: 0 0 60px rgba(201,168,76,0.3), 0 0 120px rgba(201,168,76,0.12);
   margin-bottom: 28px;
-  display: inline-flex;
+  display: inline-block;
   line-height: 0;
+  min-width: 304px;
+  min-height: 304px;
 }
-#ctrlQRCanvas { display: block; border-radius: 6px; width: 280px !important; height: 280px !important; }
+#ctrlQRWrap img, #ctrlQRWrap canvas {
+  display: block !important;
+  width: 280px !important;
+  height: 280px !important;
+  border-radius: 6px;
+}
 #ctrlModalSub {
   color: #888;
   font-size: 15px;
@@ -357,9 +364,7 @@ iVBORw0KGgoAAAANSUhEUgAABDgAAAQ4CAYAAADsEGyPAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAAB
   <button id="ctrlModalClose" onclick="closeCtrlModal()">✕</button>
   <div id="ctrlModalTitle">SISTEMA INTEGRAL DE TRANSPORTE DE TIJUANA</div>
   <div id="ctrlModalHeading">CONTROL REMOTO</div>
-  <div id="ctrlQRWrap">
-    <canvas id="ctrlQRCanvas" width="280" height="280"></canvas>
-  </div>
+  <div id="ctrlQRWrap"></div>
   <p id="ctrlModalSub">Escanea con tu celular para controlar el teleprompter</p>
   <p id="ctrlSessionId"></p>
   <div id="ctrlRemoteStatus">✅ CELULAR CONECTADO</div>
@@ -1203,61 +1208,59 @@ document.addEventListener('click', function(e) {
 
 function generateCtrlQR() {
   var remoteURL = 'https://jairpalma2910-pc.github.io/jpestudio/remote.html?s=' + ctrlSessionId;
-  document.getElementById('ctrlSessionId').textContent = 'Sesión: ' + ctrlSessionId;
+  var sesEl = document.getElementById('ctrlSessionId');
+  if (sesEl) sesEl.textContent = 'Sesión: ' + ctrlSessionId;
 
-  // Cargar QRCode.js y generar
+  // Usar qrcode-generator que dibuja directo en canvas
+  var script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+  script.onload = function() { renderQRDirect(remoteURL); };
+  script.onerror = function() { showQRFallback(remoteURL); };
+  // Si ya está cargado
   if (typeof QRCode !== 'undefined') {
-    renderQR(remoteURL);
+    renderQRDirect(remoteURL);
   } else {
-    var script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
-    script.onload = function() { renderQR(remoteURL); };
-    script.onerror = function() { showQRFallback(remoteURL); };
     document.head.appendChild(script);
   }
 }
 
-function renderQR(url) {
-  var canvas = document.getElementById('ctrlQRCanvas');
-  if (!canvas) return;
+function renderQRDirect(url) {
+  // Limpiar canvas anterior
+  var wrap = document.getElementById('ctrlQRWrap');
+  if (!wrap) return;
+
+  // Quitar canvas viejo y crear div fresco para QRCode
+  wrap.innerHTML = '';
+  var qrDiv = document.createElement('div');
+  wrap.appendChild(qrDiv);
+
   try {
-    var div = document.createElement('div');
-    div.style.display = 'none';
-    document.body.appendChild(div);
-    new QRCode(div, { text: url, width: 280, height: 280, colorDark: '#000', colorLight: '#fff' });
+    new QRCode(qrDiv, {
+      text: url,
+      width: 280,
+      height: 280,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+    // QRCode genera una img y un canvas — ocultar canvas, mostrar img
     setTimeout(function() {
-      var img = div.querySelector('img');
-      if (img && img.src) {
-        var i = new Image();
-        i.onload = function() {
-          canvas.width = 280;
-          canvas.height = 280;
-          var ctx = canvas.getContext('2d');
-          ctx.fillStyle = '#fff';
-          ctx.fillRect(0,0,280,280);
-          ctx.drawImage(i, 0, 0, 280, 280);
-        };
-        i.src = img.src;
+      var img = qrDiv.querySelector('img');
+      var cvs = qrDiv.querySelector('canvas');
+      if (img) {
+        img.style.cssText = 'width:280px;height:280px;display:block;border-radius:6px;';
+        if (cvs) cvs.style.display = 'none';
+      } else if (cvs) {
+        cvs.style.cssText = 'width:280px;height:280px;display:block;border-radius:6px;';
       }
-      div.remove();
-    }, 600);
+    }, 200);
   } catch(e) { showQRFallback(url); }
 }
 
 function showQRFallback(url) {
-  var canvas = document.getElementById('ctrlQRCanvas');
-  if (!canvas) return;
-  var ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#111'; ctx.fillRect(0,0,160,160);
-  ctx.fillStyle = '#C9A84C'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center';
-  ctx.fillText('Abre en tu cel:', 80, 20);
-  ctx.fillStyle = '#fff'; ctx.font = '8px Arial';
-  var chunk = 28;
-  var y = 40;
-  for (var i=0; i<url.length; i+=chunk) {
-    ctx.fillText(url.substr(i,chunk), 80, y);
-    y += 14;
-  }
+  var wrap = document.getElementById('ctrlQRWrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<p style="color:#333;font-size:11px;padding:20px;text-align:center;max-width:280px;">Abre esta URL en tu cel:<br><br><strong>' + url + '</strong></p>';
 }
 
 // Conectar WebSocket para control remoto
