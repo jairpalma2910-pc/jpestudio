@@ -736,71 +736,18 @@ function closeEdit(){
 // EDITOR: APLICAR CAMBIOS
 // ══════════════════════════════════════════
 function applyEdit(){
-  var raw=document.getElementById('editTA').value;
-  var lines=raw.split('\n');
-  var out='';
-  var buffer=[];
-
-  function getCol(tag){
-    if(tag.includes('PUNTO')||tag.includes('───')) return '#ff8a65';
-    if(tag.includes('SECRETARIA')) return '#64b5f6';
-    if(tag.includes('ADMINISTRATIVA')||tag.includes('INZUNZA')) return '#81c784';
-    if(tag.includes('PARTIDA')) return '#81c784';
-    if(tag.includes('ACUERDO')) return '#90caf9';
-    // Buscar color custom
-    var key=tag.trim().toUpperCase();
-    if(personaColors[key]) return personaColors[key];
-    return '#C9A84C';
-  }
-
-  function flushBuf(){
-    if(buffer.length===0) return;
-    var txt=buffer.join(' ').trim();
-    if(txt) out+='<div class="texto">'+txt.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>';
-    buffer=[];
-  }
-
-  var inBloque=false;
-  lines.forEach(function(line){
-    var t=line.trim();
-    var tagMatch=t.match(/^\[([^\]]+)\]$/);
-    if(tagMatch){
-      flushBuf();
-      if(inBloque) out+='</div>';
-      var tag=tagMatch[1].toUpperCase();
-      var col=getCol(tag);
-      out+='<div class="bloque"><div class="quien" style="color:'+col+';">'+tag+'</div>';
-      inBloque=true;
-      return;
-    }
-    if(t.match(/^-{3,}$/)){
-      flushBuf();
-      if(inBloque){ out+='</div>'; inBloque=false; }
-      out+='<hr style="border-color:rgba(255,255,255,0.15);margin:20px 0;">';
-      return;
-    }
-    if(t===''){ flushBuf(); return; }
-    buffer.push(t);
-  });
-  flushBuf();
-  if(inBloque) out+='</div>';
-
-  // Aplicar via applyGuionText para consistencia
-  applyGuionText(document.getElementById('editTA').value);
-
-  // Guardar guión en el script persistente
-  // Guardar guión y notificar al padre para auto-guardar
   var guionTexto=document.getElementById('editTA').value;
+  // 1. Aplicar el guión al teleprompter
+  applyGuionText(guionTexto);
+  // 2. Guardar en variable global
   window.__GUION__=guionTexto;
-  // Enviar SOLO el texto del guión (no HTML completo)
+  // 3. Notificar a React para auto-guardar en BD
   try {
     if(window.parent && window.parent!==window){
       window.parent.postMessage({type:'save_guion', text:guionTexto}, '*');
     }
   } catch(e2) {}
-  // (guardado via save_guion arriba)
-
-  // Feedback visual SIN cerrar
+  // 4. Feedback visual sin cerrar el editor
   var btn=document.getElementById('editApplyBtn');
   if(btn){
     var orig=btn.textContent;
