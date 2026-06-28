@@ -16,6 +16,7 @@ export default function Editor() {
   const [showSaveModal, setShowSaveModal] = useState(false)
 
   const guionRef = useRef('')
+  const opcionesRef = useRef(null)
   const idRef = useRef(id)
   const nombreRef = useRef(nombre)
 
@@ -27,13 +28,17 @@ export default function Editor() {
     const handler = async (e) => {
       if (e.data?.type !== 'save_guion') return
       const txt = e.data.text || ''
+      const opciones = e.data.opciones || null
       guionRef.current = txt
+      if (opciones) opcionesRef.current = opciones
       const currentId = idRef.current
       if (!currentId) return // nuevo proyecto, no auto-guardar
+      // Guardar guión + opciones como JSON
+      const payload = JSON.stringify({ guion: txt, opciones: opciones || opcionesRef.current })
       try {
         await api.put(`/api/projects/${currentId}`, {
           nombre: nombreRef.current,
-          html_content: txt
+          html_content: payload
         })
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
@@ -63,13 +68,19 @@ export default function Editor() {
 
       // Detectar HTML legacy vs texto plano
       const isHTML = content.trim().startsWith('<!DOCTYPE') || content.trim().startsWith('<html')
+      const isJSON = content.trim().startsWith('{')
       let guion = content
-      if (isHTML) {
-        // Extraer guión de HTML antiguo
+      let opciones = null
+      if (isJSON) {
+        try {
+          const parsed = JSON.parse(content)
+          guion = parsed.guion || ''
+          opciones = parsed.opciones || null
+        } catch(e) { guion = content }
+      } else if (isHTML) {
         const m = content.match(/window\.__GUION__\s*=\s*`([\s\S]*?)`;/)
         guion = m ? m[1].replace(/\\`/g, '`').replace(/\\\\/g, '\\') : ''
         if (!guion) {
-          // Fallback: convertir bloques del DOM a texto
           let txt = ''
           const bloques = content.matchAll(/<div class="bloque">[\s\S]*?<div class="quien"[^>]*>([\s\S]*?)<\/div>[\s\S]*?<div class="texto"[^>]*>([\s\S]*?)<\/div>/g)
           for (const b of bloques) {
@@ -80,6 +91,7 @@ export default function Editor() {
         }
       }
       guionRef.current = guion
+      if (opciones) opcionesRef.current = opciones
 
       // Enviar al iframe — intentar inmediatamente y reintentar cada 200ms
       // hasta que el iframe esté listo (máx 3s)
@@ -102,7 +114,7 @@ export default function Editor() {
         return
       }
       try {
-        iframe.contentWindow.postMessage({ type: 'load_guion', text: txt }, '*')
+        iframe.contentWindow.postMessage({ type: 'load_guion', text: txt, opciones: opcionesRef.current }, '*')
       } catch(e) {
         if (intentos < maxIntentos) setTimeout(enviar, 200)
       }
