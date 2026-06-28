@@ -32,13 +32,10 @@ export default function Editor() {
       // PORTADA: usuario da 💾 GUARDAR en el iframe
       if (e.data?.type === 'save_portada') {
         const estado = e.data.estado
-        estadoPortadaRef.current = estado
+        estadoPortadaRef.current = estado  // guardar SIEMPRE aunque sea proyecto nuevo
         const currentId = idRef.current
-        console.log('[REACT] save_portada recibido, id:', currentId, 'estado keys:', Object.keys(estado||{}))
-        if (!currentId) {
-          console.warn('[REACT] Sin id - proyecto nuevo, no se auto-guarda')
-          return
-        }
+        if (!currentId) return  // proyecto nuevo: solo actualizar ref, no guardar en BD
+        // Proyecto existente: guardar en BD
         try {
           await api.put(`/api/projects/${currentId}`, {
             nombre: nombreRef.current,
@@ -146,27 +143,50 @@ export default function Editor() {
   const handleSaveNew = async () => {
     setSaving(true)
     try {
-      const content = await new Promise((resolve) => {
-        const h = (e) => {
-          if (tipo === 'portada' && e.data?.type === 'portada_data') {
-            window.removeEventListener('message', h); clearTimeout(t)
-            resolve(JSON.stringify({ tipo: 'portada', estado: e.data.estado }))
+      let content = ''
+
+      if (tipo === 'portada') {
+        // Para portada: pedir estado al iframe y esperar respuesta
+        content = await new Promise((resolve) => {
+          const h = (e) => {
+            // Aceptar tanto portada_data como save_portada
+            if (e.data?.type === 'portada_data' || e.data?.type === 'save_portada') {
+              const estado = e.data.estado
+              window.removeEventListener('message', h)
+              clearTimeout(t)
+              estadoPortadaRef.current = estado
+              resolve(JSON.stringify({ tipo: 'portada', estado }))
+            }
           }
-          if (tipo === 'teleprompter' && e.data?.type === 'guion_data') {
-            window.removeEventListener('message', h); clearTimeout(t)
-            resolve(JSON.stringify({ tipo: 'teleprompter', guion: e.data.text||'', opciones: e.data.opciones||opcionesRef.current }))
+          window.addEventListener('message', h)
+          const t = setTimeout(() => {
+            window.removeEventListener('message', h)
+            // Fallback: usar lo que ya tenemos en ref
+            resolve(JSON.stringify({ tipo: 'portada', estado: estadoPortadaRef.current }))
+          }, 2000)
+          // Pedir el estado actual al iframe
+          try { iframeRef.current?.contentWindow?.postMessage('get_portada', '*') } catch(e) {}
+        })
+      } else {
+        // Teleprompter
+        content = await new Promise((resolve) => {
+          const h = (e) => {
+            if (e.data?.type === 'guion_data' || e.data?.type === 'save_guion') {
+              window.removeEventListener('message', h)
+              clearTimeout(t)
+              const guion = e.data.text || e.data.text || guionRef.current
+              const opciones = e.data.opciones || opcionesRef.current
+              resolve(JSON.stringify({ tipo: 'teleprompter', guion, opciones }))
+            }
           }
-        }
-        window.addEventListener('message', h)
-        const t = setTimeout(() => {
-          window.removeEventListener('message', h)
-          const fallback = tipo === 'portada'
-            ? JSON.stringify({ tipo: 'portada', estado: estadoPortadaRef.current })
-            : JSON.stringify({ tipo: 'teleprompter', guion: guionRef.current, opciones: opcionesRef.current })
-          resolve(fallback)
-        }, 3000)
-        iframeRef.current?.contentWindow?.postMessage(tipo === 'portada' ? 'get_portada' : 'get_guion', '*')
-      })
+          window.addEventListener('message', h)
+          const t = setTimeout(() => {
+            window.removeEventListener('message', h)
+            resolve(JSON.stringify({ tipo: 'teleprompter', guion: guionRef.current, opciones: opcionesRef.current }))
+          }, 2000)
+          try { iframeRef.current?.contentWindow?.postMessage('get_guion', '*') } catch(e) {}
+        })
+      }
 
       const { data } = await api.post('/api/projects', { nombre, tipo, html_content: content })
       navigate(`/editor/${tipo}/${data.id}`, { replace: true })
