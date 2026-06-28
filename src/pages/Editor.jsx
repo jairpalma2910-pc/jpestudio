@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../api'
 import './Editor.css'
@@ -18,7 +18,6 @@ export default function Editor() {
   const [showSaveModal, setShowSaveModal] = useState(false)
 
   const [htmlContent, setHtmlContent] = useState('')
-  const [fullscreen, setFullscreen] = useState(false)
 
   useEffect(() => {
     if (id) loadProject()
@@ -38,24 +37,6 @@ export default function Editor() {
       navigate('/projects')
     }
   }
-
-  const toggleFullscreen = useCallback(() => {
-    const iframe = iframeRef.current
-    if (!document.fullscreenElement) {
-      if (iframe?.requestFullscreen) iframe.requestFullscreen()
-      else if (iframe?.webkitRequestFullscreen) iframe.webkitRequestFullscreen()
-      setFullscreen(true)
-    } else {
-      if (document.exitFullscreen) document.exitFullscreen()
-      setFullscreen(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    const handler = () => setFullscreen(!!document.fullscreenElement)
-    document.addEventListener('fullscreenchange', handler)
-    return () => document.removeEventListener('fullscreenchange', handler)
-  }, [])
 
   const getIframeSrc = () => {
     if (htmlContent) {
@@ -112,14 +93,7 @@ export default function Editor() {
           {saved && <span className="editor-saved">✓ Guardado</span>}
           <button className="btn btn-outline btn-sm" onClick={() => setShowSaveModal(true)}>💾 Guardar</button>
 
-          <button
-            className="btn btn-sm"
-            style={{background:'#1a1a2e',color:'#C9A84C',border:'1px solid #C9A84C'}}
-            onClick={toggleFullscreen}
-            title="Pantalla completa (F11 para salir)"
-          >
-            {fullscreen ? '⊡ Salir' : '⛶ Presentar'}
-          </button>
+
         </div>
       </div>
 
