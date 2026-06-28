@@ -247,11 +247,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:#6B1020;font-family:
 #ctrlQRWrap {
   background: #fff;
   border-radius: 20px;
-  padding: 20px;
-  box-shadow: 0 0 60px rgba(201,168,76,0.25), 0 0 120px rgba(201,168,76,0.1);
+  padding: 16px;
+  box-shadow: 0 0 60px rgba(201,168,76,0.3), 0 0 120px rgba(201,168,76,0.12);
   margin-bottom: 28px;
+  display: inline-block;
+  line-height: 0;
 }
-#ctrlQRCanvas { display: block; border-radius: 8px; }
+#ctrlQRCanvas { display: block; border-radius: 6px; width: 260px; height: 260px; }
 #ctrlModalSub {
   color: #888;
   font-size: 15px;
@@ -1223,7 +1225,7 @@ function renderQR(url) {
     var div = document.createElement('div');
     div.style.display = 'none';
     document.body.appendChild(div);
-    new QRCode(div, { text: url, width: 160, height: 160, colorDark: '#000', colorLight: '#fff' });
+    new QRCode(div, { text: url, width: 260, height: 260, colorDark: '#000', colorLight: '#fff' });
     setTimeout(function() {
       var img = div.querySelector('img');
       if (img && img.src) {
@@ -1232,7 +1234,7 @@ function renderQR(url) {
           var ctx = canvas.getContext('2d');
           ctx.fillStyle = '#fff';
           ctx.fillRect(0,0,160,160);
-          ctx.drawImage(i, 0, 0, 160, 160);
+          ctx.drawImage(i, 0, 0, 280, 280);
         };
         i.src = img.src;
       }
