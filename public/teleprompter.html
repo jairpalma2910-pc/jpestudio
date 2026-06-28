@@ -275,6 +275,7 @@ iVBORw0KGgoAAAANSUhEUgAABDgAAAQ4CAYAAADsEGyPAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAAB
   <span id="spdv">3</span>
   <button class="bg" onclick="openEdit()" style="background:#1a7a3a;color:#fff;">✏️ EDITAR</button>
   <button class="bg" onclick="hidebar()">Ocultar ▼</button>
+  <button id="barSaveBtn" onclick="guardarCambios()" style="background:#C9A84C;color:#000;font-weight:bold;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:14px;">💾 GUARDAR</button>
 </div>
 
 <!-- BOTÓN OPCIONES -->
@@ -592,6 +593,36 @@ function resumeNow(){
   anim();
 }
 function setPauseTime(t){ defPauseTime=t; clearInterval(pauseCountdown); var cnt=t; document.getElementById('pcount').textContent=cnt; pauseCountdown=setInterval(function(){ cnt--; document.getElementById('pcount').textContent=cnt; if(cnt<=0){ clearInterval(pauseCountdown); resumeNow(); } },1000); }
+function getOpciones(){
+  // Capturar estado actual de opciones visuales
+  var bloques = document.querySelectorAll('.texto');
+  var quienes = document.querySelectorAll('.quien');
+  return {
+    bg: document.body.style.background || '',
+    txtColor: bloques.length ? bloques[0].style.color : '',
+    txtSize: bloques.length ? bloques[0].style.fontSize : '',
+    quienSize: quienes.length ? quienes[0].style.fontSize : '',
+    logoVisible: document.getElementById('lw') ? document.getElementById('lw').style.display !== 'none' : true,
+    logoSize: document.getElementById('li') ? document.getElementById('li').style.width : ''
+  };
+}
+function guardarCambios(){
+  var guionTexto = window.__GUION__ || '';
+  var opciones = getOpciones();
+  try {
+    var destino = (window.parent !== window) ? window.parent : window.top;
+    if (destino && destino !== window) {
+      destino.postMessage({type:'save_guion', text:guionTexto, opciones:opciones}, '*');
+      var btn = document.getElementById('barSaveBtn');
+      if(btn){
+        btn.textContent='✓ GUARDADO';
+        btn.style.background='#1a7a3a';
+        btn.style.color='#fff';
+        setTimeout(function(){ btn.textContent='💾 GUARDAR'; btn.style.background='#C9A84C'; btn.style.color='#000'; }, 2000);
+      }
+    }
+  } catch(e){}
+}
 function toggleAutoPause(){ autoPause=!autoPause; document.getElementById('pauseBtn').textContent=autoPause?'✓ Pausa auto ACTIVADA':'Activar pausa auto'; document.getElementById('pauseBtn').style.background=autoPause?'#1a7a3a':'#333'; }
 
 // ══════════════════════════════════════════
@@ -1061,6 +1092,16 @@ window.addEventListener('message', function(e) {
     window.__GUION__ = data.text || '';
     if (window.__GUION__.trim()) {
       applyGuionText(window.__GUION__);
+    }
+    // Restaurar opciones visuales si vienen guardadas
+    if (data.opciones) {
+      var op = data.opciones;
+      if (op.bg) { document.body.style.background = op.bg; }
+      if (op.txtColor) document.querySelectorAll('.texto').forEach(function(e){ e.style.color=op.txtColor; });
+      if (op.txtSize) document.querySelectorAll('.texto').forEach(function(e){ e.style.fontSize=op.txtSize; });
+      if (op.quienSize) document.querySelectorAll('.quien').forEach(function(e){ e.style.fontSize=op.quienSize; });
+      if (op.logoSize) { var li=document.getElementById('li'); if(li) li.style.width=op.logoSize; }
+      if (op.logoVisible === false) { var lw2=document.getElementById('lw'); if(lw2) lw2.style.display='none'; }
     }
   }
 
