@@ -1085,17 +1085,19 @@ function toggleEditTheme(){
   var tb=document.getElementById('editToolbar');
   var sb=document.getElementById('editStatus');
   var btn=document.getElementById('editThemeBtn');
-  var isDark=em.style.background!=='#fff';
+  var isDark=btn.textContent.includes('CLARO');
   if(isDark){
     em.style.background='#fff'; ta.style.background='#fafafa'; ta.style.color='#111';
     ln.style.background='#f0f0f0'; ln.style.color='#888';
-    prev.style.background='#f5f5f5';
+    prev.style.background='#f5f5f5'; prev.style.color='#111';
+    document.getElementById('editPreviewContent').style.color='#111';
     tb.style.background='#e8e8e8'; sb.style.background='#eee';
     btn.textContent='🌙 OSCURO'; btn.style.background='#222'; btn.style.color='#fff';
   } else {
     em.style.background=''; ta.style.background='#111'; ta.style.color='#ddd';
     ln.style.background='#1a1a1a'; ln.style.color='#555';
-    prev.style.background='#0d0d0d';
+    prev.style.background='#0d0d0d'; prev.style.color='#eee';
+    document.getElementById('editPreviewContent').style.color='#eee';
     tb.style.background='#181818'; sb.style.background='#0d0d0d';
     btn.textContent='☀ CLARO'; btn.style.background='#fff'; btn.style.color='#000';
   }
@@ -1116,7 +1118,7 @@ window.addEventListener('message',function(e){
     }catch(err){}
   }
   if(e.data==='present_mode'){
-    ['panel','opBtn','bar','showBar','editMode'].forEach(function(id){
+    ['bar','showBar','editMode'].forEach(function(id){
       var el=document.getElementById(id);
       if(el) el.style.display='none';
     });
