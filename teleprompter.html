@@ -610,6 +610,8 @@ function getOpciones(){
     quienSize: quienes.length ? quienes[0].style.fontSize : '',
     logoVisible: document.getElementById('lw') ? document.getElementById('lw').style.display !== 'none' : true,
     logoSize: document.getElementById('li') ? document.getElementById('li').style.width : '',
+    logoX: typeof lx !== 'undefined' ? lx : 20,
+    logoY: typeof ly !== 'undefined' ? ly : 16,
     colPres: document.getElementById('colPres') ? document.getElementById('colPres').value : '#C9A84C',
     colSec:  document.getElementById('colSec')  ? document.getElementById('colSec').value  : '#64b5f6',
     colAdm:  document.getElementById('colAdm')  ? document.getElementById('colAdm').value  : '#81c784',
@@ -1162,6 +1164,11 @@ window.addEventListener('message', function(e) {
       if (op.quienSize) document.querySelectorAll('.quien').forEach(function(e){ e.style.fontSize=op.quienSize; });
       if (op.logoSize) { var li2=document.getElementById('li'); if(li2) li2.style.width=op.logoSize; }
       if (op.logoVisible === false) { var lw2=document.getElementById('lw'); if(lw2) lw2.style.display='none'; }
+      if (op.logoX !== undefined && op.logoY !== undefined) {
+        lx=op.logoX; ly=op.logoY;
+        var lwEl=document.getElementById('lw');
+        if(lwEl){ lwEl.style.left=lx+'px'; lwEl.style.top=ly+'px'; }
+      }
       // Restaurar colores custom
       if (op.colPres) { var cp=document.getElementById('colPres'); if(cp) cp.value=op.colPres; }
       if (op.colSec)  { var cs=document.getElementById('colSec');  if(cs) cs.value=op.colSec;  }
