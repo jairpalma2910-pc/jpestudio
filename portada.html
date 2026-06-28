@@ -737,6 +737,17 @@ window.addEventListener('message', function(e) {
     var h = '<!DOCTYPE html>' + document.documentElement.outerHTML;
     e.source.postMessage({ type: 'save_html', html: h }, '*');
   }
+  // Cargar HTML guardado de proyecto existente
+  if (e.data && e.data.type === 'load_html') {
+    try {
+      var parser = new DOMParser();
+      var doc = parser.parseFromString(e.data.html, 'text/html');
+      // Reemplazar el body con el guardado
+      document.body.innerHTML = doc.body.innerHTML;
+      // Re-inicializar draggables
+      if (typeof initDraggables === 'function') initDraggables();
+    } catch(err) { console.error('load_html error', err); }
+  }
   if (e.data === 'present_mode') {
     var ids = ['editPanel','toggleBarBtn','epBtn','portadaSaveBtn'];
     ids.forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display='none'; });
