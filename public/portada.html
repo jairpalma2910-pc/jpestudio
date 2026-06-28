@@ -810,7 +810,15 @@ window.addEventListener('message', function(e) {
   }
   // Cargar estado guardado
   if (e.data && e.data.type === 'load_portada') {
-    applyEstado(e.data.estado);
+    var estado = e.data.estado;
+    // Esperar a que el DOM esté completamente listo
+    if (document.readyState === 'complete') {
+      applyEstado(estado);
+    } else {
+      window.addEventListener('load', function() {
+        setTimeout(function(){ applyEstado(estado); }, 100);
+      }, { once: true });
+    }
   }
   // Modo presentación: ocultar controles
   if (e.data === 'present_mode') {
