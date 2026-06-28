@@ -743,10 +743,15 @@ function applyEdit(){
   window.__GUION__=guionTexto;
   // 3. Notificar a React para auto-guardar en BD
   try {
-    if(window.parent && window.parent!==window){
-      window.parent.postMessage({type:'save_guion', text:guionTexto}, '*');
+    var destino = (window.parent !== window) ? window.parent : null;
+    if (!destino && window.top !== window) destino = window.top;
+    if (destino) {
+      destino.postMessage({type:'save_guion', text:guionTexto}, '*');
+      console.log('[TELE] save_guion enviado, chars:', guionTexto.length);
+    } else {
+      console.warn('[TELE] No hay parent/top distinto, sin iframe');
     }
-  } catch(e2) {}
+  } catch(e2) { console.error('[TELE] postMessage error:', e2); }
   // 4. Feedback visual sin cerrar el editor
   var btn=document.getElementById('editApplyBtn');
   if(btn){
