@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../api'
 import './Editor.css'
@@ -16,6 +16,11 @@ export default function Editor() {
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [htmlContent, setHtmlContent] = useState('')
   const [iframeSrc, setIframeSrc] = useState('')
+  const idRef = useRef(id)
+  const nombreRef = useRef(nombre)
+
+  useEffect(() => { idRef.current = id }, [id])
+  useEffect(() => { nombreRef.current = nombre }, [nombre])
 
   useEffect(() => {
     if (id) loadProject()
@@ -25,11 +30,23 @@ export default function Editor() {
     }
   }, [id, tipo])
 
-  // Escuchar mensajes del iframe (para guardar HTML)
+  // Escuchar save_html del iframe — auto-guardar si proyecto existente
   useEffect(() => {
-    const handler = (e) => {
-      if (e.data?.type === 'save_html' && e.data?.html) {
-        setHtmlContent(e.data.html)
+    const handler = async (e) => {
+      if (e.data?.type !== 'save_html' || !e.data?.html) return
+      const content = e.data.html
+      setHtmlContent(content)
+
+      // Si hay id guardamos automáticamente
+      const currentId = idRef.current
+      if (currentId) {
+        try {
+          await api.put(`/api/projects/${currentId}`, { nombre: nombreRef.current, html_content: content })
+          setSaved(true)
+          setTimeout(() => setSaved(false), 3000)
+        } catch (err) {
+          console.error('Auto-save error:', err)
+        }
       }
     }
     window.addEventListener('message', handler)
@@ -49,13 +66,11 @@ export default function Editor() {
     }
   }
 
-  // Pedir HTML al iframe via postMessage
   const requestHTMLFromIframe = () => {
     return new Promise((resolve) => {
       const iframe = iframeRef.current
       if (!iframe) { resolve(htmlContent); return }
 
-      // Escuchar respuesta del iframe
       const handler = (e) => {
         if (e.data?.type === 'save_html' && e.data?.html) {
           window.removeEventListener('message', handler)
@@ -65,14 +80,18 @@ export default function Editor() {
       }
       window.addEventListener('message', handler)
 
-      // Timeout fallback - usar HTML en memoria
       const timeout = setTimeout(() => {
         window.removeEventListener('message', handler)
         resolve(htmlContent)
       }, 3000)
 
-      // Pedir el HTML al iframe
-      iframe.contentWindow.postMessage('get_html', '*')
+      try {
+        iframe.contentWindow.postMessage('get_html', '*')
+      } catch(e) {
+        clearTimeout(timeout)
+        window.removeEventListener('message', handler)
+        resolve(htmlContent)
+      }
     })
   }
 
@@ -84,14 +103,14 @@ export default function Editor() {
 
       if (id) {
         await api.put(`/api/projects/${id}`, { nombre, html_content: content })
+        setHtmlContent(content)
+        setSaved(true)
+        setTimeout(() => setSaved(false), 3000)
+        setShowSaveModal(false)
       } else {
         const { data } = await api.post('/api/projects', { nombre, tipo, html_content: content })
         navigate(`/editor/${tipo}/${data.id}`, { replace: true })
       }
-      setHtmlContent(content)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
-      setShowSaveModal(false)
     } catch (e) {
       alert('Error al guardar: ' + (e.response?.data?.error || e.message))
     } finally {
@@ -110,7 +129,9 @@ export default function Editor() {
         </div>
         <div className="editor-actions">
           {saved && <span className="editor-saved">✓ Guardado</span>}
-          <button className="btn btn-gold btn-sm" onClick={() => setShowSaveModal(true)}>💾 Guardar</button>
+          <button className="btn btn-gold btn-sm" onClick={() => id ? handleSave() : setShowSaveModal(true)}>
+            💾 {id ? 'Guardar' : 'Guardar proyecto'}
+          </button>
         </div>
       </div>
 
