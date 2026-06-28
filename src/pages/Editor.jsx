@@ -29,21 +29,25 @@ export default function Editor() {
       if (e.data?.type !== 'save_guion') return
       const txt = e.data.text || ''
       const opciones = e.data.opciones || null
+      console.log('[REACT] save_guion recibido, chars:', txt.length, 'id:', idRef.current)
       guionRef.current = txt
       if (opciones) opcionesRef.current = opciones
       const currentId = idRef.current
-      if (!currentId) return // nuevo proyecto, no auto-guardar
-      // Guardar guión + opciones como JSON
+      if (!currentId) {
+        console.warn('[REACT] Sin id, no se guarda')
+        return
+      }
       const payload = JSON.stringify({ guion: txt, opciones: opciones || opcionesRef.current })
       try {
         await api.put(`/api/projects/${currentId}`, {
           nombre: nombreRef.current,
           html_content: payload
         })
+        console.log('[REACT] Guardado OK en proyecto', currentId)
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
       } catch (err) {
-        console.error('Error auto-save:', err)
+        console.error('[REACT] Error auto-save:', err)
       }
     }
     window.addEventListener('message', handler)
