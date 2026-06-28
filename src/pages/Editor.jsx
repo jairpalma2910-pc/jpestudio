@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom'
 import api from '../api'
 import './Editor.css'
 
-// HTMLs base embebidos como strings (se cargan desde los archivos subidos)
 const BASE_PORTADA_URL = '/jpestudio/portada.html'
 const BASE_TELEPROMPTER_URL = '/jpestudio/teleprompter.html'
 
@@ -11,62 +10,78 @@ export default function Editor() {
   const { tipo, id } = useParams()
   const navigate = useNavigate()
   const iframeRef = useRef(null)
-  const [project, setProject] = useState(null)
   const [nombre, setNombre] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [showSaveModal, setShowSaveModal] = useState(false)
-
   const [htmlContent, setHtmlContent] = useState('')
+  const [iframeSrc, setIframeSrc] = useState('')
 
   useEffect(() => {
     if (id) loadProject()
     else {
       setNombre(tipo === 'portada' ? 'Nueva Portada' : 'Nuevo Teleprompter')
+      setIframeSrc(tipo === 'portada' ? BASE_PORTADA_URL : BASE_TELEPROMPTER_URL)
     }
   }, [id, tipo])
+
+  // Escuchar mensajes del iframe (para guardar HTML)
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.data?.type === 'save_html' && e.data?.html) {
+        setHtmlContent(e.data.html)
+      }
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [])
 
   const loadProject = async () => {
     try {
       const { data } = await api.get(`/api/projects/${id}`)
-      setProject(data)
       setNombre(data.nombre)
       setHtmlContent(data.html_content)
+      const blob = new Blob([data.html_content], { type: 'text/html' })
+      setIframeSrc(URL.createObjectURL(blob))
     } catch (e) {
       alert('Error al cargar proyecto')
       navigate('/projects')
     }
   }
 
-  const getIframeSrc = () => {
-    if (htmlContent) {
-      const blob = new Blob([htmlContent], { type: 'text/html' })
-      return URL.createObjectURL(blob)
-    }
-    return tipo === 'portada' ? BASE_PORTADA_URL : BASE_TELEPROMPTER_URL
-  }
-
-  const captureHTML = () => {
-    try {
+  // Pedir HTML al iframe antes de guardar
+  const requestHTMLFromIframe = () => {
+    return new Promise((resolve) => {
       const iframe = iframeRef.current
-      if (!iframe?.contentDocument) return null
-      return '<!DOCTYPE html>' + iframe.contentDocument.documentElement.outerHTML
-    } catch {
-      return htmlContent
-    }
+      if (!iframe) { resolve(htmlContent); return }
+
+      // Intentar leer directamente (funciona si es mismo origen)
+      try {
+        const doc = iframe.contentDocument
+        if (doc) {
+          resolve('<!DOCTYPE html>' + doc.documentElement.outerHTML)
+          return
+        }
+      } catch(e) {}
+
+      // Si no se puede, usar el HTML que tenemos guardado
+      resolve(htmlContent)
+    })
   }
 
   const handleSave = async () => {
-    const content = captureHTML()
-    if (!content) return alert('No se pudo capturar el contenido')
     setSaving(true)
     try {
+      const content = await requestHTMLFromIframe()
+      if (!content) { alert('No se pudo obtener el contenido'); setSaving(false); return }
+
       if (id) {
         await api.put(`/api/projects/${id}`, { nombre, html_content: content })
       } else {
         const { data } = await api.post('/api/projects', { nombre, tipo, html_content: content })
         navigate(`/editor/${tipo}/${data.id}`, { replace: true })
       }
+      setHtmlContent(content)
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
       setShowSaveModal(false)
@@ -77,11 +92,8 @@ export default function Editor() {
     }
   }
 
-
-
   return (
     <div className="editor-page">
-      {/* Barra superior */}
       <div className="editor-topbar">
         <button className="btn btn-ghost btn-sm" onClick={() => navigate('/projects')}>← Volver</button>
         <div className="editor-title">
@@ -91,24 +103,20 @@ export default function Editor() {
         </div>
         <div className="editor-actions">
           {saved && <span className="editor-saved">✓ Guardado</span>}
-          <button className="btn btn-outline btn-sm" onClick={() => setShowSaveModal(true)}>💾 Guardar</button>
-
-
+          <button className="btn btn-gold btn-sm" onClick={() => setShowSaveModal(true)}>💾 Guardar</button>
         </div>
       </div>
 
-      {/* Iframe con el HTML */}
       <div className="editor-frame">
         <iframe
           ref={iframeRef}
-          src={getIframeSrc()}
+          src={iframeSrc}
           title={`Editor ${tipo}`}
           className="editor-iframe"
-          sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
         />
       </div>
 
-      {/* Modal guardar */}
       {showSaveModal && (
         <div className="modal-overlay" onClick={() => setShowSaveModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
@@ -130,8 +138,6 @@ export default function Editor() {
           </div>
         </div>
       )}
-
-
     </div>
   )
 }
