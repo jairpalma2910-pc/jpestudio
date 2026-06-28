@@ -167,6 +167,50 @@ html,body{width:100%;height:100%;overflow:hidden;background:#6B1020;font-family:
   padding:12px;text-align:center;display:none;}
 #qrPanel p{color:#C9A84C;font-size:10px;font-family:Arial;margin-top:6px;letter-spacing:1px;}
 
+/* BOTÓN FLOTANTE CONTROL - visible en presentación */
+#ctrlFloatBtn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  width: 36px;
+  height: 36px;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid rgba(201,168,76,0.4);
+  border-radius: 50%;
+  cursor: grab;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all 0.2s;
+  user-select: none;
+}
+#ctrlFloatBtn:hover {
+  background: rgba(201,168,76,0.2);
+  border-color: #C9A84C;
+  width: 40px;
+  height: 40px;
+}
+
+/* Panel QR que sale al darle click */
+#ctrlQRBox {
+  position: fixed;
+  bottom: 70px;
+  right: 20px;
+  z-index: 9999;
+  background: rgba(0,0,0,0.95);
+  border: 2px solid #C9A84C;
+  border-radius: 14px;
+  padding: 16px;
+  text-align: center;
+  display: none;
+  min-width: 200px;
+}
+#ctrlQRBox h4 { color: #C9A84C; font-size: 11px; letter-spacing: 2px; margin-bottom: 10px; font-family: Arial; }
+#ctrlQRBox p { color: #aaa; font-size: 10px; margin-top: 8px; line-height: 1.5; font-family: Arial; }
+#ctrlQRCanvas { border-radius: 8px; background: #fff; }
+
 /* QR CONTROL REMOTO */
 #qrControlPanel {
   position:fixed; bottom:80px; right:16px; z-index:600;
@@ -239,6 +283,15 @@ iVBORw0KGgoAAAANSUhEUgAABDgAAAQ4CAYAAADsEGyPAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAAB
   <canvas id="qrCanvas"></canvas>
   <p>Escanea con tu cel<br>para controlar</p>
   <div id="remoteStatus">✓ Cel conectado</div>
+</div>
+
+<!-- BOTÓN FLOTANTE CONTROL (solo visible en presentación) -->
+<div id="ctrlFloatBtn" title="Control remoto">📱</div>
+<div id="ctrlQRBox">
+  <h4>📱 CONTROL REMOTO</h4>
+  <canvas id="ctrlQRCanvas" width="160" height="160"></canvas>
+  <p>Escanea con tu cel<br>para controlar</p>
+  <p id="ctrlSessionId" style="color:#555;font-size:9px;margin-top:4px;"></p>
 </div>
 
 <!-- SCROLLER -->
@@ -1021,6 +1074,144 @@ window.addEventListener('message', function(e) {
   if (e.data === 'get_html') {
     var html = '<!DOCTYPE html>' + document.documentElement.outerHTML;
     e.source.postMessage({ type: 'save_html', html: html }, '*');
+  }
+});
+// ── BOTÓN FLOTANTE CONTROL EN PRESENTACIÓN ──
+var ctrlFloatDrag = false, ctrlFOX = 0, ctrlFOY = 0;
+var ctrlQRVisible = false;
+var ctrlSessionId = 'sitt_' + Math.random().toString(36).substr(2,8);
+
+function initCtrlFloat() {
+  var btn = document.getElementById('ctrlFloatBtn');
+  if (!btn) return;
+  btn.style.display = 'flex';
+
+  // Arrastrable
+  btn.addEventListener('mousedown', function(e) {
+    ctrlFloatDrag = true;
+    var r = btn.getBoundingClientRect();
+    ctrlFOX = e.clientX - r.left;
+    ctrlFOY = e.clientY - r.top;
+    btn.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', function(e) {
+    if (!ctrlFloatDrag) return;
+    btn.style.right = 'auto';
+    btn.style.bottom = 'auto';
+    btn.style.left = (e.clientX - ctrlFOX) + 'px';
+    btn.style.top = (e.clientY - ctrlFOY) + 'px';
+    // Mover QR box junto al botón
+    var qr = document.getElementById('ctrlQRBox');
+    qr.style.left = (e.clientX - ctrlFOX - 80) + 'px';
+    qr.style.top = (e.clientY - ctrlFOY - 230) + 'px';
+    qr.style.right = 'auto';
+    qr.style.bottom = 'auto';
+  });
+  document.addEventListener('mouseup', function() {
+    ctrlFloatDrag = false;
+    btn.style.cursor = 'grab';
+  });
+
+  // Click para mostrar/ocultar QR
+  btn.addEventListener('click', function(e) {
+    if (ctrlFloatDrag) return;
+    ctrlQRVisible = !ctrlQRVisible;
+    var qr = document.getElementById('ctrlQRBox');
+    qr.style.display = ctrlQRVisible ? 'block' : 'none';
+    if (ctrlQRVisible) generateCtrlQR();
+  });
+}
+
+function generateCtrlQR() {
+  var remoteURL = 'https://jairpalma2910-pc.github.io/jpestudio/remote.html?s=' + ctrlSessionId;
+  document.getElementById('ctrlSessionId').textContent = 'Sesión: ' + ctrlSessionId;
+
+  // Cargar QRCode.js y generar
+  if (typeof QRCode !== 'undefined') {
+    renderQR(remoteURL);
+  } else {
+    var script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+    script.onload = function() { renderQR(remoteURL); };
+    script.onerror = function() { showQRFallback(remoteURL); };
+    document.head.appendChild(script);
+  }
+}
+
+function renderQR(url) {
+  var canvas = document.getElementById('ctrlQRCanvas');
+  if (!canvas) return;
+  try {
+    // Usar QRCode lib
+    var div = document.createElement('div');
+    div.style.display = 'none';
+    document.body.appendChild(div);
+    new QRCode(div, { text: url, width: 160, height: 160, colorDark: '#000', colorLight: '#fff' });
+    setTimeout(function() {
+      var img = div.querySelector('img');
+      if (img && img.src) {
+        var i = new Image();
+        i.onload = function() {
+          var ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0,0,160,160);
+          ctx.drawImage(i, 0, 0, 160, 160);
+        };
+        i.src = img.src;
+      }
+      div.remove();
+    }, 600);
+  } catch(e) { showQRFallback(url); }
+}
+
+function showQRFallback(url) {
+  var canvas = document.getElementById('ctrlQRCanvas');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#111'; ctx.fillRect(0,0,160,160);
+  ctx.fillStyle = '#C9A84C'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center';
+  ctx.fillText('Abre en tu cel:', 80, 20);
+  ctx.fillStyle = '#fff'; ctx.font = '8px Arial';
+  var chunk = 28;
+  var y = 40;
+  for (var i=0; i<url.length; i+=chunk) {
+    ctx.fillText(url.substr(i,chunk), 80, y);
+    y += 14;
+  }
+}
+
+// Conectar WebSocket para control remoto
+var wsCtrl = null;
+function connectCtrlWS() {
+  wsCtrl = new WebSocket('wss://jpestudio-api.onrender.com/ws?session=' + ctrlSessionId + '&role=screen');
+  wsCtrl.onmessage = function(e) {
+    try {
+      var msg = JSON.parse(e.data);
+      if (msg.action === 'toggle') togglePlay();
+      else if (msg.action === 'up') goUp();
+      else if (msg.action === 'down') goDown();
+      else if (msg.action === 'stop') stopFn();
+      else if (msg.action === 'speed') {
+        spd = parseInt(msg.speed) || spd;
+        var sl = document.querySelector('#bar input[type=range]');
+        if (sl) sl.value = spd;
+        document.getElementById('spdv').textContent = spd;
+      }
+    } catch(e) {}
+  };
+  wsCtrl.onclose = function() { setTimeout(connectCtrlWS, 3000); };
+}
+
+// Activar botón flotante en modo presentación
+window.addEventListener('message', function(e) {
+  if (e.data === 'present_mode') {
+    initCtrlFloat();
+    connectCtrlWS();
+  }
+  if (e.data === 'get_html') {
+    var h = '<!DOCTYPE html>' + document.documentElement.outerHTML;
+    e.source.postMessage({ type: 'save_html', html: h }, '*');
   }
 });
 </script>
