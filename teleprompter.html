@@ -983,7 +983,11 @@ document.addEventListener('dblclick',function(){ if(!barVis) showBarFn(); });
 
 // ── TECLADO ──
 document.addEventListener('keydown',function(e){
-  if(e.code==='Space'){e.preventDefault();togglePlay();}
+  if(e.code==='Space'){
+    var editOpen = document.getElementById('editMode') && document.getElementById('editMode').classList.contains('open');
+    if(editOpen) return;
+    e.preventDefault();togglePlay();
+  }
   else if(e.code==='ArrowUp') goUp();
   else if(e.code==='ArrowDown') goDown();
   else if(e.code==='ArrowRight'){
