@@ -778,19 +778,17 @@ function applyEstado(st) {
 }
 
 function guardarPortada(){
-  try {
-    var estado = getEstado();
-    var destino = (window.parent !== window) ? window.parent : window.top;
-    if (destino && destino !== window) {
-      destino.postMessage({ type: 'save_portada', estado: estado }, '*');
-      var btn = document.getElementById('portadaSaveBtn');
-      if(btn){
-        btn.textContent = '✓ GUARDADO';
-        btn.style.background = '#1a7a3a';
-        setTimeout(function(){ btn.textContent = '💾 GUARDAR'; btn.style.background = '#C9A84C'; }, 2000);
-      }
-    }
-  } catch(e){ console.error('guardarPortada error', e); }
+  var estado = getEstado();
+  console.log('[PORTADA] guardando estado:', JSON.stringify(estado).substring(0,100));
+  // Intentar enviar al padre (siempre, sin verificaciones que puedan fallar)
+  try { window.parent.postMessage({ type: 'save_portada', estado: estado }, '*'); } catch(e1) { console.warn('parent failed', e1); }
+  try { window.top.postMessage({ type: 'save_portada', estado: estado }, '*'); } catch(e2) { console.warn('top failed', e2); }
+  var btn = document.getElementById('portadaSaveBtn');
+  if(btn){
+    btn.textContent = '✓ GUARDADO';
+    btn.style.background = '#1a7a3a';
+    setTimeout(function(){ btn.textContent = '💾 GUARDAR'; btn.style.background = '#C9A84C'; }, 2000);
+  }
 }
 
 window.addEventListener('message', function(e) {
