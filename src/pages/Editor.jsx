@@ -34,12 +34,17 @@ export default function Editor() {
         const estado = e.data.estado
         estadoPortadaRef.current = estado
         const currentId = idRef.current
-        if (!currentId) return
+        console.log('[REACT] save_portada recibido, id:', currentId, 'estado keys:', Object.keys(estado||{}))
+        if (!currentId) {
+          console.warn('[REACT] Sin id - proyecto nuevo, no se auto-guarda')
+          return
+        }
         try {
           await api.put(`/api/projects/${currentId}`, {
             nombre: nombreRef.current,
             html_content: JSON.stringify({ tipo: 'portada', estado })
           })
+          console.log('[REACT] save_portada OK')
           setSaved(true)
           setTimeout(() => setSaved(false), 2000)
         } catch (err) { console.error('save_portada error:', err) }
