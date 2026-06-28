@@ -666,6 +666,56 @@ function getPersonaColor(nombre){
 // ══════════════════════════════════════════
 // EDITOR: ABRIR / CERRAR
 // ══════════════════════════════════════════
+function applyGuionText(raw){
+  // Aplica texto plano [NOMBRE]\ntexto al teleprompter
+  var lines=raw.split('\n');
+  var out='';
+  var buffer=[];
+  var inBloque=false;
+
+  function getCol(tag){
+    if(tag.includes('PUNTO')||tag.includes('───')) return '#ff8a65';
+    if(tag.includes('SECRETARIA')) return '#64b5f6';
+    if(tag.includes('ADMINISTRATIVA')||tag.includes('INZUNZA')) return '#81c784';
+    if(tag.includes('PARTIDA')) return '#81c784';
+    if(tag.includes('ACUERDO')) return '#90caf9';
+    var key=tag.trim().toUpperCase();
+    if(personaColors[key]) return personaColors[key];
+    return '#C9A84C';
+  }
+  function flushBuf(){
+    if(buffer.length===0) return;
+    var txt=buffer.join(' ').trim();
+    if(txt) out+='<div class="texto">'+txt.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>';
+    buffer=[];
+  }
+  lines.forEach(function(line){
+    var t=line.trim();
+    var tagMatch=t.match(/^\[([^\]]+)\]$/);
+    if(tagMatch){
+      flushBuf();
+      if(inBloque) out+='</div>';
+      var tag=tagMatch[1].toUpperCase();
+      var col=getCol(tag);
+      out+='<div class="bloque"><div class="quien" style="color:'+col+';">'+tag+'</div>';
+      inBloque=true;
+      return;
+    }
+    if(t.match(/^-{3,}$/)){
+      flushBuf();
+      if(inBloque){out+='</div>';inBloque=false;}
+      out+='<hr style="border-color:rgba(255,255,255,0.15);margin:20px 0;">';
+      return;
+    }
+    if(t===''){flushBuf();return;}
+    buffer.push(t);
+  });
+  flushBuf();
+  if(inBloque) out+='</div>';
+  // Aplicar via applyGuionText para consistencia
+  applyGuionText(document.getElementById('editTA').value);
+}
+
 function openEdit(){
   var ta=document.getElementById('editTA');
   var txt=window.__GUION__||'';
@@ -735,20 +785,20 @@ function applyEdit(){
   flushBuf();
   if(inBloque) out+='</div>';
 
-  sc.innerHTML=out||'<div class="bloque"><div class="texto">Sin contenido</div></div>';
-  pos=0; sc.style.transform='translateY(0)';
-  lastBloque=null;
+  // Aplicar via applyGuionText para consistencia
+  applyGuionText(document.getElementById('editTA').value);
 
   // Guardar guión en el script persistente
-  // Guardar guión en variable global y serializar en script embebido
+  // Guardar guión y notificar al padre para auto-guardar
   var guionTexto=document.getElementById('editTA').value;
   window.__GUION__=guionTexto;
-  var initScript=document.getElementById('guion-init-script');
-  if(initScript){
-    var escaped=guionTexto.replace(/\\/g,'\\\\').replace(/`/g,'\\`');
-    initScript.textContent='window.__GUION__=`'+escaped+'`;';
-  }
-  // Notificar al padre (Editor.jsx) para auto-guardar
+  // Enviar SOLO el texto del guión (no HTML completo)
+  try {
+    if(window.parent && window.parent!==window){
+      window.parent.postMessage({type:'save_guion', text:guionTexto}, '*');
+    }
+  } catch(e2) {}
+  // Notificar al padre
   try{
     var fullHtml='<!DOCTYPE html>'+document.documentElement.outerHTML;
     if(window.parent && window.parent!==window){
@@ -828,7 +878,8 @@ function updatePreview(){
       out+='<hr style="border-color:#444;margin:6px 0;">';
     } else {
       var _btn=document.getElementById('editThemeBtn');
-      var txtCol=(_btn && _btn.textContent.includes('OSCURO'))?'#111':'#ccc';
+      var _isLight=_btn && _btn.textContent.includes('OSCURO');
+      var txtCol=_isLight?'#222':'#ccc';
       out+='<div style="color:'+txtCol+';font-size:13px;line-height:1.6;">'+t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>';
     }
   });
@@ -1045,61 +1096,43 @@ function cancelModal(id){
 </script>
 
 <!-- Datos del guión persistentes -->
-<!-- Script de guión embebido — se actualiza antes de guardar -->
-<script id="guion-init-script">/* guion se inicializa en el script principal */</script>
-
 <!-- Listener comunicación con editor React -->
 <script>
-// ══════════════════════════════════════════
-// GESTIÓN DEL GUIÓN — PERSISTENCIA
-// ══════════════════════════════════════════
-// El guión se guarda en window.__GUION__
-// Al guardar con outerHTML, este script se incluye con el valor actualizado
+// ═══════════════════════════════════════════
+// COMUNICACIÓN CON EDITOR REACT — NUEVA ARQUITECTURA
+// El guión viaja como TEXTO PLANO via postMessage
+// Ya no se usa outerHTML para guardar
+// ═══════════════════════════════════════════
+window.addEventListener('message', function(e) {
+  var data = e.data;
 
-// Inicializar leyendo del DOM si no hay guión en memoria
-(function(){
-  if(window.__GUION__ && window.__GUION__.trim()) return;
-  var sc2=document.getElementById('sc');
-  if(!sc2) return;
-  var txt='';
-  sc2.childNodes.forEach(function(node){
-    if(node.nodeType!==1) return;
-    if(node.classList && node.classList.contains('bloque')){
-      var q=node.querySelector('.quien');
-      var t=node.querySelector('.texto');
-      if(q) txt+='['+q.textContent.trim()+']\n';
-      if(t) txt+=t.innerText.trim()+'\n';
-      txt+='\n';
-    } else if(node.tagName==='HR'){
-      txt+='---\n';
+  // RECIBIR GUIÓN: Editor carga proyecto y envía el texto
+  if (data && data.type === 'load_guion') {
+    window.__GUION__ = data.text || '';
+    if (window.__GUION__.trim()) {
+      applyGuionText(window.__GUION__);
     }
-  });
-  window.__GUION__=txt;
-})();
-
-window.addEventListener('message',function(e){
-  if(e.data==='get_html'){
-    try{
-      // Actualizar __GUION__ desde el textarea si está abierto
-      var taEl=document.getElementById('editTA');
-      if(taEl && taEl.value.trim()) window.__GUION__=taEl.value;
-      // Serializar __GUION__ en el script embebido antes de capturar
-      var initScript=document.getElementById('guion-init-script');
-      if(initScript){
-        var escaped=window.__GUION__.replace(/\\/g,'\\\\').replace(/`/g,'\\`');
-        initScript.textContent='window.__GUION__=`'+escaped+'`;';
-      }
-      var h='<!DOCTYPE html>'+document.documentElement.outerHTML;
-      e.source.postMessage({type:'save_html',html:h},'*');
-    }catch(err){ console.error('get_html error',err); }
   }
-  if(e.data==='present_mode'){
-    ['bar','showBar','editMode'].forEach(function(id){
-      var el=document.getElementById(id);
-      if(el) el.style.display='none';
+
+  // PEDIR GUIÓN: Editor quiere guardar
+  if (data === 'get_guion') {
+    try {
+      var ta = document.getElementById('editTA');
+      var txt = (ta && ta.value.trim()) ? ta.value : (window.__GUION__ || '');
+      window.__GUION__ = txt;
+      e.source.postMessage({ type: 'guion_data', text: txt }, '*');
+    } catch(err) {}
+  }
+
+  // MODO PRESENTACIÓN: ocultar todo excepto el teleprompter
+  if (data === 'present_mode') {
+    ['bar','showBar','editMode','panel','opBtn'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = 'none';
     });
   }
-});</script>
+});
+</script>
 
 </body>
 </html>
