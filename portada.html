@@ -2,11 +2,12 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SITT - Portada Sesión</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { width:100vw; height:100vh; overflow:hidden; background:#6B1020; font-family:Arial,sans-serif; display:flex; align-items:center; justify-content:center; }
-.bg { position:fixed; inset:0; background:radial-gradient(ellipse at center, #7d1525 0%, #6B1020 55%, #500e18 100%); }
+body { width:100%; height:100vh; overflow:hidden; background:#6B1020; font-family:Arial,sans-serif; display:flex; align-items:center; justify-content:center; }
+.bg { position:fixed; top:0;left:0;right:0;bottom:0; background:radial-gradient(ellipse at center, #7d1525 0%, #6B1020 55%, #500e18 100%); }
 
 /* DRAGÓN REAL - vuela de izquierda a derecha en bucle */
 .dragon1 {
@@ -144,9 +145,10 @@ iVBORw0KGgoAAAANSUhEUgAABDgAAAQ4CAYAAADsEGyPAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAAB
 
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;700&family=Rajdhani:wght@600;700&family=Barlow+Condensed:wght@700&family=Anton&family=Teko:wght@600&family=Big+Shoulders+Display:wght@700&family=Exo+2:wght@700&family=Montserrat:wght@700;900&family=Roboto+Condensed:wght@700&display=swap" rel="stylesheet">
 
-<button id="toggleBarBtn" onclick="togglePanel()" style="display:none;">&#9881; EDITOR</button>
+<button id="toggleBarBtn" onclick="togglePanel()">&#9881; EDITOR</button>
+<button id="portadaSaveBtn" onclick="guardarPortada()" style="position:fixed;top:12px;right:110px;z-index:10000;background:#C9A84C;color:#000;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;font-family:Arial;font-weight:bold;letter-spacing:1px;">💾 GUARDAR</button>
 
-<div id="editPanel" class="hidden" style="display:none;">
+<div id="editPanel" class="hidden">
   <h3>EDITOR PORTADA SITT</h3>
 
   <h4>POSICION</h4>
@@ -154,37 +156,28 @@ iVBORw0KGgoAAAANSUhEUgAABDgAAAQ4CAYAAADsEGyPAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAAB
   <button class="btn-red" onclick="resetPos()">Reset posiciones</button>
 
   <h4>TEXTOS</h4>
+  <label>Sesion (arriba dorado)</label>
+  <input type="text" id="txtSesion" value="Decima Cuarta Sesion Ordinaria" oninput="changeText('.session-number',this.value)">
+  <label>Titulo (comite grande)</label>
+  <input type="text" id="txtTitulo" value="Comite de Adquisiciones" oninput="changeText('.session-title',this.value)">
+  <label>Subtitulo (abajo)</label>
+  <input type="text" id="txtSub" value="Sistema Integral de Transporte de Tijuana" oninput="changeText('.session-sub',this.value)">
 
-  <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:8px;padding:10px;margin-bottom:8px;">
-    <div style="font-size:11px;font-weight:700;color:#C9A84C;margin-bottom:6px;">① Texto 1 — Sesión</div>
-    <input type="text" id="txtSesion" value="Decima Cuarta Sesion Ordinaria" oninput="changeText('.session-number',this.value)" style="width:100%;background:#1a0010;border:1px solid #444;color:#fff;padding:4px 7px;border-radius:5px;font-size:11px;margin-bottom:4px;">
-    <label style="font-size:10px;color:#aaa;">Tamaño: <span id="szSesion">28px</span></label>
-    <input type="range" min="10" max="80" value="28" oninput="changeFontSize('.session-number',this.value,'szSesion')" style="width:100%;">
-    <label style="font-size:10px;color:#aaa;">Color</label>
-    <input type="color" value="#C9A84C" oninput="changeColor('.session-number',this.value)" style="width:100%;height:26px;border:1px solid #444;border-radius:5px;cursor:pointer;padding:2px;">
-  </div>
+  <h4>TAMANO DE TEXTO</h4>
+  <label>Sesion: <span id="szSesion">28px</span></label>
+  <input type="range" min="10" max="80" value="28" oninput="changeFontSize('.session-number',this.value,'szSesion')">
+  <label>Comite: <span id="szTitulo">50px</span></label>
+  <input type="range" min="10" max="120" value="50" oninput="changeFontSize('.session-title',this.value,'szTitulo')">
+  <label>Subtitulo: <span id="szSub">16px</span></label>
+  <input type="range" min="8" max="60" value="16" oninput="changeFontSize('.session-sub',this.value,'szSub')">
 
-  <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:8px;padding:10px;margin-bottom:8px;">
-    <div style="font-size:11px;font-weight:700;color:#C9A84C;margin-bottom:6px;">② Texto 2 — Comité</div>
-    <input type="text" id="txtTitulo" value="Comite de Adquisiciones" oninput="changeText('.session-title',this.value)" style="width:100%;background:#1a0010;border:1px solid #444;color:#fff;padding:4px 7px;border-radius:5px;font-size:11px;margin-bottom:4px;">
-    <label style="font-size:10px;color:#aaa;">Tamaño: <span id="szTitulo">50px</span></label>
-    <input type="range" min="10" max="120" value="50" oninput="changeFontSize('.session-title',this.value,'szTitulo')" style="width:100%;">
-    <label style="font-size:10px;color:#aaa;">Color</label>
-    <input type="color" value="#ffffff" oninput="changeColor('.session-title',this.value)" style="width:100%;height:26px;border:1px solid #444;border-radius:5px;cursor:pointer;padding:2px;">
-  </div>
-
-  <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:8px;padding:10px;margin-bottom:8px;">
-    <div style="font-size:11px;font-weight:700;color:#C9A84C;margin-bottom:6px;">③ Texto 3 — Subtítulo</div>
-    <input type="text" id="txtSub" value="Sistema Integral de Transporte de Tijuana" oninput="changeText('.session-sub',this.value)" style="width:100%;background:#1a0010;border:1px solid #444;color:#fff;padding:4px 7px;border-radius:5px;font-size:11px;margin-bottom:4px;">
-    <label style="font-size:10px;color:#aaa;">Tamaño: <span id="szSub">16px</span></label>
-    <input type="range" min="8" max="60" value="16" oninput="changeFontSize('.session-sub',this.value,'szSub')" style="width:100%;">
-    <label style="font-size:10px;color:#aaa;">Color</label>
-    <input type="color" value="#b0a0a0" oninput="changeColor('.session-sub',this.value)" style="width:100%;height:26px;border:1px solid #444;border-radius:5px;cursor:pointer;padding:2px;">
-  </div>
-
-  <!-- Textos extra -->
-  <div id="extraTxtPanels"></div>
-  <button onclick="addExtraText()" style="width:100%;border:none;padding:6px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold;background:#1a7a3a;color:#fff;margin-bottom:8px;">+ Agregar texto</button>
+  <h4>COLOR DE TEXTOS</h4>
+  <label>Color Sesion</label>
+  <input type="color" value="#C9A84C" oninput="changeColor('.session-number',this.value)">
+  <label>Color Comite</label>
+  <input type="color" value="#ffffff" oninput="changeColor('.session-title',this.value)">
+  <label>Color Subtitulo</label>
+  <input type="color" value="#b0a0a0" oninput="changeColor('.session-sub',this.value)">
 
   <h4>COLORES INSTITUCIONALES</h4>
   <p style="font-size:10px;color:#666;margin:0 0 4px;">Click en texto primero, luego el color</p>
@@ -713,84 +706,6 @@ function clearFx() {
   el.style.textTransform = '';
 }
 
-// ── TEXTOS EXTRA ──
-var extraTxtCount = 3;
-
-function addExtraText() {
-  extraTxtCount++;
-  var n = extraTxtCount;
-
-  // Crear elemento en pantalla
-  var el = document.createElement('div');
-  el.id = 'extraTxt' + n;
-  el.style.cssText = 'position:fixed;bottom:8%;left:50%;transform:translateX(-50%);z-index:11;font-size:20px;color:#fff;cursor:grab;white-space:nowrap;font-family:Arial;font-weight:bold;text-transform:uppercase;letter-spacing:0.1em;';
-  el.textContent = 'Texto ' + n;
-  document.body.appendChild(el);
-
-  // Arrastrable
-  (function(elem){
-    var dx=false,ox=0,oy=0;
-    elem.addEventListener('mousedown',function(e){ dx=true; var r=elem.getBoundingClientRect(); ox=e.clientX-r.left; oy=e.clientY-r.top; elem.style.cursor='grabbing'; elem.style.transform='none'; e.preventDefault(); });
-    document.addEventListener('mousemove',function(e){ if(!dx) return; elem.style.left=(e.clientX-ox)+'px'; elem.style.top=(e.clientY-oy)+'px'; });
-    document.addEventListener('mouseup',function(){ dx=false; elem.style.cursor='grab'; });
-  })(el);
-
-  // Panel en editor
-  var panel = document.getElementById('extraTxtPanels');
-  if (!panel) return;
-  var blk = document.createElement('div');
-  blk.id = 'blk-' + n;
-  blk.style.cssText = 'background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:8px;padding:10px;margin-bottom:8px;';
-
-  // Header
-  var hdr = document.createElement('div');
-  hdr.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;';
-  var badge = document.createElement('span');
-  badge.style.cssText = 'font-size:11px;font-weight:700;color:#C9A84C;';
-  badge.textContent = 'Texto ' + n;
-  var del = document.createElement('button');
-  del.style.cssText = 'background:#8a1515;color:#fff;border:none;border-radius:4px;padding:2px 7px;cursor:pointer;font-size:11px;';
-  del.textContent = 'X';
-  del.onclick = (function(x){ return function(){ removeExtraText(x); }; })(n);
-  hdr.appendChild(badge); hdr.appendChild(del); blk.appendChild(hdr);
-
-  // Input texto
-  var inp = document.createElement('input');
-  inp.type = 'text'; inp.value = 'Texto ' + n;
-  inp.style.cssText = 'width:100%;background:#1a0010;border:1px solid #444;color:#fff;padding:4px 7px;border-radius:5px;font-size:11px;margin-bottom:4px;box-sizing:border-box;';
-  inp.oninput = (function(id){ return function(){ var e=document.getElementById(id); if(e) e.textContent=this.value; }; })('extraTxt'+n);
-  blk.appendChild(inp);
-
-  // Tamaño
-  var lblSz = document.createElement('label');
-  lblSz.style.cssText = 'font-size:10px;color:#aaa;display:block;';
-  var szSpan = document.createElement('span'); szSpan.id = 'szX'+n; szSpan.textContent = '20px';
-  lblSz.textContent = 'Tamano: '; lblSz.appendChild(szSpan); blk.appendChild(lblSz);
-  var slSz = document.createElement('input');
-  slSz.type = 'range'; slSz.min=10; slSz.max=120; slSz.value=20;
-  slSz.style.cssText = 'width:100%;margin-bottom:4px;';
-  slSz.oninput = (function(id,sid){ return function(){ var e=document.getElementById(id); if(e) e.style.fontSize=this.value+'px'; var s=document.getElementById(sid); if(s) s.textContent=this.value+'px'; }; })('extraTxt'+n,'szX'+n);
-  blk.appendChild(slSz);
-
-  // Color
-  var lblCol = document.createElement('label');
-  lblCol.style.cssText = 'font-size:10px;color:#aaa;display:block;';
-  lblCol.textContent = 'Color';
-  blk.appendChild(lblCol);
-  var colIn = document.createElement('input');
-  colIn.type = 'color'; colIn.value = '#ffffff';
-  colIn.style.cssText = 'width:100%;height:26px;border:1px solid #444;border-radius:5px;cursor:pointer;padding:2px;';
-  colIn.oninput = (function(id){ return function(){ var e=document.getElementById(id); if(e) e.style.color=this.value; }; })('extraTxt'+n);
-  blk.appendChild(colIn);
-
-  panel.appendChild(blk);
-}
-
-function removeExtraText(n) {
-  var el = document.getElementById('extraTxt' + n); if(el) el.remove();
-  var blk = document.getElementById('blk-' + n); if(blk) blk.remove();
-}
-
 function resetPos() { location.reload(); }
 
 
@@ -801,29 +716,30 @@ function togglePanel() {
 </script>
 
 <script>
+function guardarPortada(){
+  try {
+    var h = '<!DOCTYPE html>' + document.documentElement.outerHTML;
+    var destino = (window.parent !== window) ? window.parent : window.top;
+    if (destino && destino !== window) {
+      destino.postMessage({ type: 'save_html', html: h }, '*');
+      var btn = document.getElementById('portadaSaveBtn');
+      if(btn){
+        btn.textContent = '✓ GUARDADO';
+        btn.style.background = '#1a7a3a';
+        setTimeout(function(){ btn.textContent = '💾 GUARDAR'; btn.style.background = '#C9A84C'; }, 2000);
+      }
+    }
+  } catch(e){}
+}
+
 window.addEventListener('message', function(e) {
   if (e.data === 'get_html') {
     var h = '<!DOCTYPE html>' + document.documentElement.outerHTML;
     e.source.postMessage({ type: 'save_html', html: h }, '*');
   }
   if (e.data === 'present_mode') {
-    var ids = ['editPanel','toggleBarBtn'];
+    var ids = ['editPanel','toggleBarBtn','epBtn','portadaSaveBtn'];
     ids.forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display='none'; });
-  }
-});
-</script>
-
-<script>
-// Mostrar panel solo si se abre directamente (no en iframe de la app)
-window.addEventListener('load', function() {
-  var isInIframe = window.self !== window.top;
-  if (!isInIframe) {
-    var btn = document.getElementById('toggleBarBtn');
-    var panel = document.getElementById('editPanel');
-    if (btn) btn.style.display = '';
-    if (panel) panel.style.display = '';
-    panel.style.display = 'none'; // sigue oculto hasta que lo abran
-    btn.style.display = '';
   }
 });
 </script>
