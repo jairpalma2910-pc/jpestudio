@@ -18,8 +18,7 @@ export default function Editor() {
   const [iframeSrc, setIframeSrc] = useState('')
   const idRef = useRef(id)
   const nombreRef = useRef(nombre)
-  // Flag para evitar que el auto-save intercepte el get_html del guardado manual
-  const manualSaveInProgress = useRef(false)
+  const manualSaving = useRef(false)
 
   useEffect(() => { idRef.current = id }, [id])
   useEffect(() => { nombreRef.current = nombre }, [nombre])
@@ -32,22 +31,22 @@ export default function Editor() {
     }
   }, [id, tipo])
 
-  // Auto-save: solo cuando NO hay un guardado manual en progreso
+  // Auto-save: escucha save_html del iframe (cuando usuario presiona APLICAR)
+  // Solo guarda si hay id (proyecto existente) y no hay guardado manual en progreso
   useEffect(() => {
     const handler = async (e) => {
       if (e.data?.type !== 'save_html' || !e.data?.html) return
-      if (manualSaveInProgress.current) return // el guardado manual lo maneja él mismo
+      if (manualSaving.current) return
       const content = e.data.html
       setHtmlContent(content)
       const currentId = idRef.current
-      if (currentId) {
-        try {
-          await api.put(`/api/projects/${currentId}`, { nombre: nombreRef.current, html_content: content })
-          setSaved(true)
-          setTimeout(() => setSaved(false), 3000)
-        } catch (err) {
-          console.error('Auto-save error:', err)
-        }
+      if (!currentId) return // proyecto nuevo: no auto-guardar, esperar nombre
+      try {
+        await api.put(`/api/projects/${currentId}`, { nombre: nombreRef.current, html_content: content })
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2000)
+      } catch (err) {
+        console.error('Auto-save error:', err)
       }
     }
     window.addEventListener('message', handler)
@@ -67,11 +66,10 @@ export default function Editor() {
     }
   }
 
-  const requestHTMLFromIframe = () => {
+  const getHTMLFromIframe = () => {
     return new Promise((resolve) => {
       const iframe = iframeRef.current
       if (!iframe) { resolve(htmlContent); return }
-
       const handler = (e) => {
         if (e.data?.type === 'save_html' && e.data?.html) {
           window.removeEventListener('message', handler)
@@ -80,12 +78,10 @@ export default function Editor() {
         }
       }
       window.addEventListener('message', handler)
-
       const timeout = setTimeout(() => {
         window.removeEventListener('message', handler)
-        resolve(htmlContent) // fallback: usar el HTML que tenemos en memoria
+        resolve(htmlContent)
       }, 3000)
-
       try {
         iframe.contentWindow.postMessage('get_html', '*')
       } catch(e) {
@@ -96,28 +92,21 @@ export default function Editor() {
     })
   }
 
-  const handleSave = async () => {
+  // Solo para proyecto NUEVO: pedir nombre y guardar
+  const handleSaveNew = async () => {
     setSaving(true)
-    manualSaveInProgress.current = true
+    manualSaving.current = true
     try {
-      const content = await requestHTMLFromIframe()
+      const content = await getHTMLFromIframe()
       if (!content) { alert('No se pudo obtener el contenido'); return }
-
-      if (id) {
-        await api.put(`/api/projects/${id}`, { nombre, html_content: content })
-        setHtmlContent(content)
-        setSaved(true)
-        setTimeout(() => setSaved(false), 3000)
-        setShowSaveModal(false)
-      } else {
-        const { data } = await api.post('/api/projects', { nombre, tipo, html_content: content })
-        navigate(`/editor/${tipo}/${data.id}`, { replace: true })
-      }
+      const { data } = await api.post('/api/projects', { nombre, tipo, html_content: content })
+      navigate(`/editor/${tipo}/${data.id}`, { replace: true })
     } catch (e) {
       alert('Error al guardar: ' + (e.response?.data?.error || e.message))
     } finally {
       setSaving(false)
-      manualSaveInProgress.current = false
+      manualSaving.current = false
+      setShowSaveModal(false)
     }
   }
 
@@ -132,9 +121,12 @@ export default function Editor() {
         </div>
         <div className="editor-actions">
           {saved && <span className="editor-saved">✓ Guardado</span>}
-          <button className="btn btn-gold btn-sm" onClick={() => id ? handleSave() : setShowSaveModal(true)}>
-            💾 {id ? 'Guardar' : 'Guardar proyecto'}
-          </button>
+          {/* Solo mostrar botón Guardar para proyectos NUEVOS */}
+          {!id && (
+            <button className="btn btn-gold btn-sm" onClick={() => setShowSaveModal(true)}>
+              💾 Guardar proyecto
+            </button>
+          )}
         </div>
       </div>
 
@@ -148,7 +140,8 @@ export default function Editor() {
         />
       </div>
 
-      {showSaveModal && (
+      {/* Modal solo para proyectos nuevos */}
+      {showSaveModal && !id && (
         <div className="modal-overlay" onClick={() => setShowSaveModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-title">💾 Guardar Proyecto</div>
@@ -157,12 +150,12 @@ export default function Editor() {
               className="input"
               value={nombre}
               onChange={e => setNombre(e.target.value)}
-              placeholder="Ej: Portada 14va Sesión Ordinaria"
+              placeholder="Ej: 14va Sesión Ordinaria"
               autoFocus
             />
             <div style={{display:'flex',gap:10,marginTop:20,justifyContent:'flex-end'}}>
               <button className="btn btn-ghost" onClick={() => setShowSaveModal(false)}>Cancelar</button>
-              <button className="btn btn-gold" onClick={handleSave} disabled={saving || !nombre.trim()}>
+              <button className="btn btn-gold" onClick={handleSaveNew} disabled={saving || !nombre.trim()}>
                 {saving ? '⏳ Guardando...' : '💾 Guardar'}
               </button>
             </div>
