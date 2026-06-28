@@ -179,9 +179,31 @@ html,body{width:100%;height:100%;overflow:hidden;background:#6B1020;font-family:
   font-family: Arial;
   background: #f8f8f8;
   transition: all 0.15s;
+  white-space: nowrap;
 }
 .fmt-btn:hover { border-color: #C9A84C; background: #fff8e8; }
-.fmt-sep { width: 1px; height: 24px; background: #e0e0e0; margin: 0 4px; }
+.fmt-sep { width: 1px; height: 24px; background: #e0e0e0; margin: 0 4px; flex-shrink:0; }
+.modal-input {
+  width: 100%;
+  background: #0a0005;
+  border: 1px solid #444;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: Arial;
+  box-sizing: border-box;
+}
+.modal-input:focus { outline: none; border-color: #C9A84C; }
+.color-swatch {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.color-swatch:hover { transform: scale(1.15); }
+.color-swatch.selected { border-color: #fff; transform: scale(1.2); }
 
 /* Área principal: línea de referencia + textarea */
 #editMain {
@@ -694,32 +716,165 @@ iVBORw0KGgoAAAANSUhEUgAABDgAAAQ4CAYAAADsEGyPAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAAB
 <!-- MODO EDITAR - EDITOR COMPLETO -->
 <div id="editMode">
 
-  <!-- Topbar -->
+  <!-- Topbar principal -->
   <div id="editTopBar">
-    <h2>✏️ EDITOR DE GUIÓN</h2>
-    <button class="etb-btn" onclick="insertTag('PRESIDENTE')" style="background:#C9A84C;color:#000;">+ Presidente</button>
-    <button class="etb-btn" onclick="insertTag('SECRETARIA')" style="background:#1a4a8a;color:#fff;">+ Secretaria</button>
-    <button class="etb-btn" onclick="insertTag('ADMINISTRATIVA')" style="background:#1a7a3a;color:#fff;">+ Administrativa</button>
-    <button class="etb-btn" onclick="insertTag('PUNTO')" style="background:#6a3a1a;color:#fff;">+ Punto</button>
+    <h2>✏️ GUIÓN</h2>
+    <div id="personasBtns" style="display:flex;gap:6px;flex:1;overflow-x:auto;align-items:center;">
+      <!-- Se generan dinámicamente -->
+      <span style="color:#555;font-size:11px;white-space:nowrap;">Escribe [NOMBRE] para agregar personas</span>
+    </div>
     <input type="file" accept=".txt,.TXT" onchange="loadTxtFile(this)" style="display:none;" id="loadTxtInput">
-    <button class="etb-btn" onclick="document.getElementById('loadTxtInput').click()" style="background:#333;color:#fff;">📂 Subir .TXT</button>
-    <button class="etb-btn" onclick="applyEdit()" style="background:#C9A84C;color:#000;font-size:15px;padding:8px 22px;">✓ APLICAR</button>
-    <button class="etb-btn" onclick="closeEdit()" style="background:#8a1515;color:#fff;">✕ Cerrar</button>
+    <button class="etb-btn" onclick="document.getElementById('loadTxtInput').click()" style="background:#2a2a2a;color:#aaa;flex-shrink:0;">📂 .TXT</button>
+    <button class="etb-btn" onclick="applyEdit()" style="background:#C9A84C;color:#000;font-size:14px;flex-shrink:0;">✓ APLICAR</button>
+    <button class="etb-btn" onclick="closeEdit()" style="background:#8a1515;color:#fff;flex-shrink:0;">✕</button>
   </div>
 
-  <!-- Toolbar de formato -->
+  <!-- Toolbar de inserción rápida -->
   <div id="editToolbar">
-    <label>Formato:</label>
-    <button class="fmt-btn" onclick="wrapSel('[',']
-')" title="Envolver selección en etiqueta">[ Etiqueta ]</button>
-    <button class="fmt-btn" onclick="insertLine('---')" title="Agregar separador">─── Separador</button>
-    <button class="fmt-btn" onclick="insertLine('')" title="Línea en blanco">↵ Espacio</button>
+
+    <!-- Insertar persona nueva -->
+    <button class="fmt-btn" onclick="showPersonaModal()" style="background:#1a0010;color:#C9A84C;border-color:#C9A84C;">👤 + Persona</button>
     <div class="fmt-sep"></div>
-    <label>Buscar:</label>
-    <input id="searchTA" type="text" placeholder="Buscar en guión..." style="padding:4px 10px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:Arial;width:160px;">
-    <button class="fmt-btn" onclick="searchInTA()">🔍</button>
+
+    <!-- Partida presupuestal -->
+    <button class="fmt-btn" onclick="showPartidaModal()" style="background:#0d1a0d;color:#81c784;border-color:#81c784;">💰 Partida</button>
+
+    <!-- Punto del orden del día -->
+    <button class="fmt-btn" onclick="showPuntoModal()" style="background:#1a1000;color:#ff8a65;border-color:#ff8a65;">📌 Punto</button>
+
+    <!-- Acuerdo -->
+    <button class="fmt-btn" onclick="showAcuerdoModal()" style="background:#0d0d1a;color:#90caf9;border-color:#90caf9;">✅ Acuerdo</button>
+
     <div class="fmt-sep"></div>
-    <button class="fmt-btn" onclick="clearTA()" style="color:#c00;">🗑 Limpiar todo</button>
+
+    <!-- Útiles -->
+    <button class="fmt-btn" onclick="insertLine('---')">─── Separador</button>
+    <button class="fmt-btn" onclick="insertLine('')">↵ Espacio</button>
+    <button class="fmt-btn" onclick="insertFecha()">📅 Fecha</button>
+
+    <div class="fmt-sep"></div>
+
+    <!-- Buscar -->
+    <input id="searchTA" type="text" placeholder="🔍 Buscar..." style="padding:4px 10px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:Arial;width:130px;" oninput="searchInTA(this.value)">
+
+    <div style="margin-left:auto;">
+      <button class="fmt-btn" onclick="clearTA()" style="color:#c00;border-color:#c00;">🗑 Limpiar</button>
+    </div>
+  </div>
+
+  <!-- MODAL: Nueva Persona -->
+  <div id="modalPersona" style="display:none;position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+    <div style="background:#1a0010;border:2px solid #C9A84C;border-radius:14px;padding:24px;min-width:320px;">
+      <h3 style="color:#C9A84C;margin:0 0 16px;font-size:14px;letter-spacing:2px;">👤 NUEVA PERSONA</h3>
+      <label style="color:#aaa;font-size:11px;display:block;margin-bottom:4px;">Nombre / Cargo</label>
+      <input id="inputPersonaNombre" type="text" placeholder="Ej: ARQ. CHRISTIAN ESGUA" style="width:100%;background:#0a0005;border:1px solid #444;color:#fff;padding:8px 12px;border-radius:8px;font-size:14px;font-family:Arial;box-sizing:border-box;margin-bottom:12px;">
+      <label style="color:#aaa;font-size:11px;display:block;margin-bottom:4px;">Color</label>
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+        <div class="color-swatch" style="background:#C9A84C;" onclick="selectPersonaColor('#C9A84C',this)" title="Dorado"></div>
+        <div class="color-swatch" style="background:#64b5f6;" onclick="selectPersonaColor('#64b5f6',this)" title="Azul"></div>
+        <div class="color-swatch" style="background:#81c784;" onclick="selectPersonaColor('#81c784',this)" title="Verde"></div>
+        <div class="color-swatch" style="background:#ef9a9a;" onclick="selectPersonaColor('#ef9a9a',this)" title="Rosa"></div>
+        <div class="color-swatch" style="background:#ce93d8;" onclick="selectPersonaColor('#ce93d8',this)" title="Morado"></div>
+        <div class="color-swatch" style="background:#ff8a65;" onclick="selectPersonaColor('#ff8a65',this)" title="Naranja"></div>
+        <div class="color-swatch" style="background:#fff59d;" onclick="selectPersonaColor('#fff59d',this)" title="Amarillo"></div>
+        <div class="color-swatch" style="background:#80deea;" onclick="selectPersonaColor('#80deea',this)" title="Cian"></div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="cancelModal('modalPersona')" style="flex:1;padding:8px;background:#333;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:Arial;">Cancelar</button>
+        <button onclick="insertPersona()" style="flex:1;padding:8px;background:#C9A84C;color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:bold;font-family:Arial;">Insertar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Partida -->
+  <div id="modalPartida" style="display:none;position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+    <div style="background:#1a0010;border:2px solid #81c784;border-radius:14px;padding:24px;min-width:360px;">
+      <h3 style="color:#81c784;margin:0 0 16px;font-size:14px;letter-spacing:2px;">💰 PARTIDA PRESUPUESTAL</h3>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div>
+          <label style="color:#aaa;font-size:11px;display:block;margin-bottom:3px;">Número de partida *</label>
+          <input id="pPartida" type="text" placeholder="Ej: 35101" class="modal-input">
+        </div>
+        <div>
+          <label style="color:#aaa;font-size:11px;display:block;margin-bottom:3px;">Concepto (opcional)</label>
+          <input id="pConcepto" type="text" placeholder="Ej: Servicios de mantenimiento" class="modal-input">
+        </div>
+        <div>
+          <label style="color:#aaa;font-size:11px;display:block;margin-bottom:3px;">Monto (opcional)</label>
+          <input id="pMonto" type="text" placeholder="Ej: $40,654.45" class="modal-input">
+        </div>
+        <div>
+          <label style="color:#aaa;font-size:11px;display:block;margin-bottom:3px;">Proveedor (opcional)</label>
+          <input id="pProveedor" type="text" placeholder="Ej: Comercializadora XYZ SA de CV" class="modal-input">
+        </div>
+        <div>
+          <label style="color:#aaa;font-size:11px;display:block;margin-bottom:3px;">Estatus (opcional)</label>
+          <select id="pEstatus" class="modal-input">
+            <option value="">— Sin estatus —</option>
+            <option value="APROBADA">✅ APROBADA</option>
+            <option value="RECHAZADA">❌ RECHAZADA</option>
+            <option value="EN REVISIÓN">🔄 EN REVISIÓN</option>
+            <option value="DIFERIDA">⏸ DIFERIDA</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button onclick="cancelModal('modalPartida')" style="flex:1;padding:8px;background:#333;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:Arial;">Cancelar</button>
+        <button onclick="insertPartida()" style="flex:1;padding:8px;background:#81c784;color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:bold;font-family:Arial;">Insertar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Punto del orden del día -->
+  <div id="modalPunto" style="display:none;position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+    <div style="background:#1a0010;border:2px solid #ff8a65;border-radius:14px;padding:24px;min-width:360px;">
+      <h3 style="color:#ff8a65;margin:0 0 16px;font-size:14px;letter-spacing:2px;">📌 PUNTO DEL ORDEN DEL DÍA</h3>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div>
+          <label style="color:#aaa;font-size:11px;display:block;margin-bottom:3px;">Número de punto *</label>
+          <input id="ptNumero" type="text" placeholder="Ej: 1" class="modal-input">
+        </div>
+        <div>
+          <label style="color:#aaa;font-size:11px;display:block;margin-bottom:3px;">Descripción *</label>
+          <input id="ptDesc" type="text" placeholder="Ej: Lista de asistencia" class="modal-input">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button onclick="cancelModal('modalPunto')" style="flex:1;padding:8px;background:#333;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:Arial;">Cancelar</button>
+        <button onclick="insertPunto()" style="flex:1;padding:8px;background:#ff8a65;color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:bold;font-family:Arial;">Insertar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Acuerdo -->
+  <div id="modalAcuerdo" style="display:none;position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+    <div style="background:#1a0010;border:2px solid #90caf9;border-radius:14px;padding:24px;min-width:360px;">
+      <h3 style="color:#90caf9;margin:0 0 16px;font-size:14px;letter-spacing:2px;">✅ ACUERDO</h3>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div>
+          <label style="color:#aaa;font-size:11px;display:block;margin-bottom:3px;">Número de acuerdo (opcional)</label>
+          <input id="acNum" type="text" placeholder="Ej: ACU-001-2026" class="modal-input">
+        </div>
+        <div>
+          <label style="color:#aaa;font-size:11px;display:block;margin-bottom:3px;">Descripción del acuerdo *</label>
+          <textarea id="acDesc" placeholder="Ej: Se aprueba por unanimidad la adquisición de..." class="modal-input" style="height:70px;resize:none;"></textarea>
+        </div>
+        <div>
+          <label style="color:#aaa;font-size:11px;display:block;margin-bottom:3px;">Resultado (opcional)</label>
+          <select id="acResultado" class="modal-input">
+            <option value="">— Sin resultado —</option>
+            <option value="APROBADO POR UNANIMIDAD">✅ APROBADO POR UNANIMIDAD</option>
+            <option value="APROBADO POR MAYORÍA">✅ APROBADO POR MAYORÍA</option>
+            <option value="RECHAZADO">❌ RECHAZADO</option>
+            <option value="EN VOTACIÓN">🗳 EN VOTACIÓN</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button onclick="cancelModal('modalAcuerdo')" style="flex:1;padding:8px;background:#333;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:Arial;">Cancelar</button>
+        <button onclick="insertAcuerdo()" style="flex:1;padding:8px;background:#90caf9;color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:bold;font-family:Arial;">Insertar</button>
+      </div>
+    </div>
   </div>
 
   <!-- Cuerpo principal -->
@@ -953,16 +1108,26 @@ function toggleGuia(){ var g=document.getElementById('g1'); g.style.display=g.st
 // ── EDITOR ──
 function openEdit(){
   var ta=document.getElementById('editTA');
-  // Construir texto editable desde los bloques actuales
+  // Reconstruir texto editable desde el contenido actual
   var txt='';
-  document.querySelectorAll('.bloque').forEach(function(b){
-    var q=b.querySelector('.quien');
-    var t=b.querySelector('.texto');
-    if(q) txt+='[QUIEN] '+q.textContent.trim()+'\n';
-    if(t) txt+='[TEXTO] '+t.innerText.trim()+'\n';
-    txt+='\n';
+  sc.childNodes.forEach(function(node){
+    if(node.nodeType !== 1) return;
+    var tag = node.tagName;
+    if(node.classList && node.classList.contains('bloque')){
+      var q = node.querySelector('.quien');
+      var t = node.querySelector('.texto');
+      if(q) txt += '[' + q.textContent.trim() + ']\n';
+      if(t) txt += t.innerText.trim() + '\n';
+      txt += '\n';
+    } else if(tag === 'HR'){
+      txt += '---\n';
+    } else if(node.classList && node.classList.contains('texto')){
+      txt += node.innerText.trim() + '\n\n';
+    }
   });
-  ta.value=txt;
+  if(!txt.trim()) txt = '';
+  ta.value = txt;
+  onTAInput();
   document.getElementById('editMode').classList.add('open');
   playing=false;
   cancelAnimationFrame(raf);
@@ -971,8 +1136,9 @@ function openEdit(){
 function closeEdit(){ document.getElementById('editMode').classList.remove('open'); }
 function addBloque(){
   var ta=document.getElementById('editTA');
-  ta.value+='\n[QUIEN] NUEVO PARTICIPANTE\n[TEXTO] ESCRIBIR TEXTO AQUÍ\n\n';
+  ta.value+='\n[NUEVO PARTICIPANTE]\nEscribir texto aquí...\n\n';
   ta.scrollTop=ta.scrollHeight;
+  onTAInput();
 }
 function applyEdit(){
   var lines=document.getElementById('editTA').value.split('\n');
