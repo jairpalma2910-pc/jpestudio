@@ -717,62 +717,72 @@ function togglePanel() {
 
 <script>
 // ── GUARDAR ESTADO COMO JSON ──
+function qel(sel){ return document.querySelector(sel); }
+function qv(sel,prop){ var el=qel(sel); return el?(el.style[prop]||getComputedStyle(el)[prop]||''):''; }
+
 function getEstado() {
-  var g = function(id){ var el=document.getElementById(id); return el?el.value:''; };
-  var q = function(sel){ var el=document.querySelector(sel); return el?el.style:''; };
-  var qv = function(sel, prop){ var el=document.querySelector(sel); return el?(el.style[prop]||''):''; };
-  // Posiciones de draggables
-  var poss = {};
-  document.querySelectorAll('.draggable').forEach(function(el){
-    if(el.id) poss[el.id] = { left: el.style.left, top: el.style.top };
+  // Leer textos del DOM visual (no de los inputs)
+  var sn=qel('.session-number'), st=qel('.session-title'), ss=qel('.session-sub');
+  var bg=qel('.bg');
+  // Posiciones de todos los draggables
+  var poss={};
+  var dragsels=['.session-number','.logo-wrapper','.divider','.line-bottom','.session-title','.session-sub'];
+  dragsels.forEach(function(sel){
+    var el=qel(sel);
+    if(el && (el.style.left||el.style.top)) poss[sel]={left:el.style.left,top:el.style.top,width:el.style.width};
   });
   return {
-    txtSesion: g('txtSesion'),
-    txtTitulo: g('txtTitulo'),
-    txtSub: g('txtSub'),
-    szSesion: document.querySelector('#editPanel input[oninput*="session-number"][type=range]') ? document.querySelector('#editPanel input[oninput*="session-number"][type=range]').value : '28',
-    szTitulo: document.querySelector('#editPanel input[oninput*="session-title"][type=range]') ? document.querySelector('#editPanel input[oninput*="session-title"][type=range]').value : '50',
-    szSub: document.querySelector('#editPanel input[oninput*="session-sub"][type=range]') ? document.querySelector('#editPanel input[oninput*="session-sub"][type=range]').value : '16',
-    colSesion: qv('.session-number','color'),
-    colTitulo: qv('.session-title','color'),
-    colSub: qv('.session-sub','color'),
-    bg: document.body.style.background || document.querySelector('.bg') ? (document.querySelector('.bg')?document.querySelector('.bg').style.background:'') : '',
-    dragonOp: (function(){ var el=document.querySelector('.dragon'); return el?(el.style.opacity||'0.75'):'0.75'; })(),
-    logoSize: (function(){ var el=document.querySelector('.logo-wrapper img'); return el?(el.style.width||''):''; })(),
-    logoOp: (function(){ var el=document.querySelector('.logo-wrapper img'); return el?(el.style.opacity||'1'):'1'; })(),
+    txtSesion: sn?sn.textContent.trim():'',
+    txtTitulo: st?st.textContent.trim():'',
+    txtSub:    ss?ss.textContent.trim():'',
+    szSesion:  sn?(sn.style.fontSize||''):'',
+    szTitulo:  st?(st.style.fontSize||''):'',
+    szSub:     ss?(ss.style.fontSize||''):'',
+    colSesion: sn?(sn.style.color||''):'',
+    colTitulo: st?(st.style.color||''):'',
+    colSub:    ss?(ss.style.color||''):'',
+    bg: bg?(bg.style.background||document.body.style.background||''):(document.body.style.background||''),
+    dragonOp: (function(){ var el=qel('.dragon1'); return el?(el.style.opacity||'0.22'):'0.22'; })(),
+    logoSize: (function(){ var el=qel('.logo-wrapper'); return el?(el.style.width||''):''; })(),
+    logoOp:   (function(){ var el=qel('.logo-wrapper img'); return el?(el.style.opacity||'1'):'1'; })(),
     positions: poss
   };
 }
 
 function applyEstado(st) {
   if (!st) return;
+  console.log('[PORTADA] applyEstado:', JSON.stringify(st).substring(0,150));
   // Textos
-  if (st.txtSesion) { changeText('.session-number', st.txtSesion); var el=document.getElementById('txtSesion'); if(el) el.value=st.txtSesion; }
-  if (st.txtTitulo) { changeText('.session-title', st.txtTitulo); var el=document.getElementById('txtTitulo'); if(el) el.value=st.txtTitulo; }
-  if (st.txtSub)    { changeText('.session-sub', st.txtSub);     var el=document.getElementById('txtSub');    if(el) el.value=st.txtSub; }
+  if (st.txtSesion) { changeText('.session-number', st.txtSesion); var i1=document.getElementById('txtSesion'); if(i1) i1.value=st.txtSesion; }
+  if (st.txtTitulo) { changeText('.session-title',  st.txtTitulo); var i2=document.getElementById('txtTitulo'); if(i2) i2.value=st.txtTitulo; }
+  if (st.txtSub)    { changeText('.session-sub',    st.txtSub);    var i3=document.getElementById('txtSub');    if(i3) i3.value=st.txtSub; }
   // Tamaños
-  if (st.szSesion) changeFontSize('.session-number', st.szSesion, 'szSesion');
-  if (st.szTitulo) changeFontSize('.session-title', st.szTitulo, 'szTitulo');
-  if (st.szSub)    changeFontSize('.session-sub', st.szSub, 'szSub');
+  if (st.szSesion) { var el=qel('.session-number'); if(el) el.style.fontSize=st.szSesion; }
+  if (st.szTitulo) { var el=qel('.session-title');  if(el) el.style.fontSize=st.szTitulo; }
+  if (st.szSub)    { var el=qel('.session-sub');    if(el) el.style.fontSize=st.szSub; }
   // Colores
   if (st.colSesion) changeColor('.session-number', st.colSesion);
-  if (st.colTitulo) changeColor('.session-title', st.colTitulo);
-  if (st.colSub)    changeColor('.session-sub', st.colSub);
+  if (st.colTitulo) changeColor('.session-title',  st.colTitulo);
+  if (st.colSub)    changeColor('.session-sub',    st.colSub);
   // Fondo
   if (st.bg) changeBg(st.bg);
   // Dragon
-  if (st.dragonOp) changeDragonOpacity(parseFloat(st.dragonOp)*100);
-  // Logo
-  if (st.logoSize) { var img=document.querySelector('.logo-wrapper img'); if(img) img.style.width=st.logoSize; }
-  if (st.logoOp)   { var img=document.querySelector('.logo-wrapper img'); if(img) img.style.opacity=st.logoOp; }
-  // Posiciones draggables
+  if (st.dragonOp !== undefined) {
+    var d=qel('.dragon1'); if(d) d.style.opacity=st.dragonOp;
+  }
+  // Logo wrapper size
+  if (st.logoSize) { var lw=qel('.logo-wrapper'); if(lw) lw.style.width=st.logoSize; }
+  if (st.logoOp)   { var li=qel('.logo-wrapper img'); if(li) li.style.opacity=st.logoOp; }
+  // Posiciones de draggables (usando selectores CSS como keys)
   if (st.positions) {
-    Object.keys(st.positions).forEach(function(id){
-      var el = document.getElementById(id);
-      if (el) {
-        if (st.positions[id].left) el.style.left = st.positions[id].left;
-        if (st.positions[id].top)  el.style.top  = st.positions[id].top;
-      }
+    Object.keys(st.positions).forEach(function(sel){
+      var el = document.querySelector(sel);
+      if (!el) return;
+      var pos = st.positions[sel];
+      if (pos.left) el.style.left  = pos.left;
+      if (pos.top)  el.style.top   = pos.top;
+      if (pos.width) el.style.width = pos.width;
+      el.style.position = 'fixed';
     });
   }
 }
