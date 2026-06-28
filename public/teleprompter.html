@@ -996,5 +996,23 @@ window.addEventListener('load', function() {
   // No conectar hasta que el usuario abra el panel QR
 });
 </script>
+
+<script>
+// Ocultar controles si es modo presentacion
+if(window.location !== window.parent.location){
+  window.addEventListener('message', function(e){
+    if(e.data === 'present_mode'){
+      var panel = document.getElementById('panel');
+      var btn = document.getElementById('opBtn');
+      var bar = document.getElementById('bar');
+      var showBar = document.getElementById('showBar');
+      if(panel) panel.style.display = 'none';
+      if(btn) btn.style.display = 'none';
+      if(bar) bar.style.display = 'none';
+      if(showBar) showBar.style.display = 'none';
+    }
+  });
+}
+</script>
 </body>
 </html>
