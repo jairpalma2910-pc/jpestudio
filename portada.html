@@ -711,5 +711,15 @@ function togglePanel() {
   document.getElementById('editPanel').classList.toggle('hidden');
 }
 </script>
+
+<script>
+// Responder al editor cuando pide guardar
+window.addEventListener('message', function(e) {
+  if (e.data === 'get_html') {
+    var html = '<!DOCTYPE html>' + document.documentElement.outerHTML;
+    e.source.postMessage({ type: 'save_html', html: html }, '*');
+  }
+});
+</script>
 </body>
 </html>
