@@ -34,12 +34,20 @@ export default function Present() {
     }
   }
 
-  // Auto fullscreen cuando carga el iframe
+  // Auto fullscreen y ocultar controles cuando carga el iframe
   const handleIframeLoad = () => {
     const iframe = iframeRef.current
-    if (iframe?.requestFullscreen) {
-      iframe.requestFullscreen().catch(() => {})
-    }
+    if (!iframe) return
+    // Enviar mensaje para ocultar panel de opciones
+    try {
+      iframe.contentWindow.postMessage('present_mode', '*')
+    } catch(e) {}
+    // Pantalla completa automático
+    setTimeout(() => {
+      if (iframe?.requestFullscreen) {
+        iframe.requestFullscreen().catch(() => {})
+      }
+    }, 300)
   }
 
   const toggleFullscreen = () => {
