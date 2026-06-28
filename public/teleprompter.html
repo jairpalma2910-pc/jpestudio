@@ -729,21 +729,27 @@ function getPersonaColor(nombre){
 // EDITOR: ABRIR / CERRAR
 // ══════════════════════════════════════════
 function openEdit(){
-  // Leer guión actual del DOM
   var ta=document.getElementById('editTA');
   var txt='';
-  sc.childNodes.forEach(function(node){
-    if(node.nodeType!==1) return;
-    if(node.classList && node.classList.contains('bloque')){
-      var q=node.querySelector('.quien');
-      var t=node.querySelector('.texto');
-      if(q) txt+='['+q.textContent.trim()+']\n';
-      if(t) txt+=t.innerText.trim()+'\n';
-      txt+='\n';
-    } else if(node.tagName==='HR'){
-      txt+='---\n';
-    }
-  });
+  // Primero intentar leer el guión guardado en data-guion
+  var savedGuion=sc.getAttribute('data-guion');
+  if(savedGuion){
+    txt=savedGuion;
+  } else {
+    // Leer del DOM si no hay guión guardado
+    sc.childNodes.forEach(function(node){
+      if(node.nodeType!==1) return;
+      if(node.classList && node.classList.contains('bloque')){
+        var q=node.querySelector('.quien');
+        var t=node.querySelector('.texto');
+        if(q) txt+='['+q.textContent.trim()+']\n';
+        if(t) txt+=t.innerText.trim()+'\n';
+        txt+='\n';
+      } else if(node.tagName==='HR'){
+        txt+='---\n';
+      }
+    });
+  }
   ta.value=txt;
   document.getElementById('editMode').classList.add('open');
   playing=false;
@@ -815,6 +821,8 @@ function applyEdit(){
   lastBloque=null;
 
   // Notificar al padre (Editor.jsx) para auto-guardar
+  // Guardamos el innerHTML del guion en un data attribute para recuperarlo al reabrir
+  sc.setAttribute('data-guion', document.getElementById('editTA').value);
   try{
     var fullHtml='<!DOCTYPE html>'+document.documentElement.outerHTML;
     if(window.parent && window.parent!==window){
@@ -893,7 +901,8 @@ function updatePreview(){
     } else if(t.match(/^-{3,}$/)){
       out+='<hr style="border-color:#444;margin:6px 0;">';
     } else {
-      out+='<div style="color:#eee;font-size:13px;line-height:1.6;">'+t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>';
+      var txtCol=(document.getElementById('editThemeBtn').textContent.includes('OSCURO'))?'#111':'#eee';
+      out+='<div style="color:'+txtCol+';font-size:13px;line-height:1.6;">'+t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>';
     }
   });
   prev.innerHTML=out||'<span style="color:#555;font-size:12px;">Empieza a escribir...</span>';
@@ -1113,6 +1122,9 @@ function cancelModal(id){
 window.addEventListener('message',function(e){
   if(e.data==='get_html'){
     try{
+      // Asegurar que data-guion esté actualizado antes de guardar
+      var taEl=document.getElementById('editTA');
+      if(taEl && taEl.value) sc.setAttribute('data-guion',taEl.value);
       var h='<!DOCTYPE html>'+document.documentElement.outerHTML;
       e.source.postMessage({type:'save_html',html:h},'*');
     }catch(err){}
