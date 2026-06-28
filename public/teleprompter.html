@@ -1500,6 +1500,290 @@ function showURLFallback(ctx, url, size) {
 window.addEventListener('load', function() {
   // No conectar hasta que el usuario abra el panel QR
 });
+
+// ── FUNCIONES DEL EDITOR ──
+var personaColors = {};
+var colorPalette = ['#C9A84C','#64b5f6','#81c784','#ef9a9a','#ce93d8','#ff8a65','#fff59d','#80deea'];
+var colorIndex = 0;
+var extraTxtCount = 3;
+var selectedPersonaColor = '#C9A84C';
+
+function getPersonaColor(nombre) {
+  var key = nombre.toUpperCase().trim();
+  if (!personaColors[key]) {
+    personaColors[key] = colorPalette[colorIndex % colorPalette.length];
+    colorIndex++;
+  }
+  return personaColors[key];
+}
+
+function detectPersonas() {
+  var ta = document.getElementById('editTA');
+  if (!ta) return [];
+  var matches = ta.value.match(/\[([^\]]+)\]/g) || [];
+  var personas = [], seen = {};
+  matches.forEach(function(m) {
+    var name = m.replace(/[\[\]]/g,'').trim().toUpperCase();
+    var especiales = ['PARTIDA','PUNTO','ACUERDO'];
+    var esEspecial = especiales.some(function(e){ return name.startsWith(e); });
+    if (!esEspecial && !seen[name]) { seen[name]=true; personas.push(name); }
+  });
+  return personas;
+}
+
+function updatePersonasBtns() {
+  var container = document.getElementById('personasBtns');
+  if (!container) return;
+  var personas = detectPersonas();
+  if (personas.length === 0) {
+    container.innerHTML = '<span style="color:#555;font-size:11px;white-space:nowrap;">Escribe [NOMBRE] para agregar personas</span>';
+    return;
+  }
+  container.innerHTML = '';
+  personas.forEach(function(name) {
+    var col = getPersonaColor(name);
+    var isDark = (col==='#C9A84C'||col==='#fff59d');
+    var btn = document.createElement('button');
+    btn.className = 'etb-btn';
+    btn.style.cssText = 'background:'+col+';color:'+(isDark?'#000':'#fff')+';flex-shrink:0;font-size:11px;padding:5px 10px;border:none;border-radius:8px;cursor:pointer;white-space:nowrap;';
+    btn.textContent = '+ ' + name;
+    btn.onclick = (function(n){ return function(){ insertTagDirect(n); }; })(name);
+    container.appendChild(btn);
+  });
+}
+
+function insertTagDirect(nombre) {
+  var ta = document.getElementById('editTA');
+  if (!ta) return;
+  var pos = ta.selectionStart;
+  var before = ta.value.substring(0, pos);
+  var after = ta.value.substring(pos);
+  if (before.length > 0 && !before.endsWith('\n')) before += '\n';
+  var tag = '\n[' + nombre + ']\n';
+  ta.value = before + tag + after;
+  ta.selectionStart = ta.selectionEnd = before.length + tag.length;
+  ta.focus();
+  onTAInput();
+}
+
+function insertAtCursor(txt) {
+  var ta = document.getElementById('editTA');
+  if (!ta) return;
+  var pos = ta.selectionStart;
+  var before = ta.value.substring(0, pos);
+  var after = ta.value.substring(pos);
+  if (before.length > 0 && !before.endsWith('\n')) before += '\n';
+  ta.value = before + txt + after;
+  ta.selectionStart = ta.selectionEnd = before.length + txt.length;
+  ta.focus();
+  onTAInput();
+}
+
+function insertLine(txt) {
+  insertAtCursor(txt + '\n');
+}
+
+function insertFecha() {
+  var d = new Date();
+  var meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  insertAtCursor(d.getDate() + ' de ' + meses[d.getMonth()] + ' de ' + d.getFullYear());
+}
+
+function searchInTA(term) {
+  if (!term) return;
+  var ta = document.getElementById('editTA');
+  if (!ta) return;
+  var idx = ta.value.toLowerCase().indexOf(term.toLowerCase());
+  if (idx >= 0) { ta.focus(); ta.selectionStart = idx; ta.selectionEnd = idx + term.length; }
+}
+
+function clearTA() {
+  if (!confirm('¿Borrar todo el guión?')) return;
+  var ta = document.getElementById('editTA');
+  if (ta) ta.value = '';
+  onTAInput();
+}
+
+function onTAInput() {
+  updateLineNums();
+  updatePreview();
+  updateStatus();
+  updatePersonasBtns();
+}
+
+function syncLineNums() {
+  var ta = document.getElementById('editTA');
+  var ln = document.getElementById('editLineNums');
+  if (ta && ln) ln.scrollTop = ta.scrollTop;
+}
+
+function updateLineNums() {
+  var ta = document.getElementById('editTA');
+  var ln = document.getElementById('editLineNums');
+  if (!ta || !ln) return;
+  var lines = ta.value.split('\n').length;
+  var nums = [];
+  for (var i = 1; i <= lines; i++) nums.push(i);
+  ln.textContent = nums.join('\n');
+}
+
+function updateStatus() {
+  var ta = document.getElementById('editTA');
+  if (!ta) return;
+  var v = ta.value;
+  var lines = v.split('\n').length;
+  var words = v.trim() ? v.trim().split(/\s+/).length : 0;
+  var sl = document.getElementById('stLines');
+  var sw = document.getElementById('stWords');
+  var sc2 = document.getElementById('stChars');
+  if (sl) sl.textContent = lines;
+  if (sw) sw.textContent = words;
+  if (sc2) sc2.textContent = v.length;
+}
+
+function updatePreview() {
+  var ta = document.getElementById('editTA');
+  var prev = document.getElementById('editPreviewContent');
+  if (!prev || !ta) return;
+  var lines = ta.value.split('\n');
+  var out = '';
+  lines.forEach(function(line) {
+    var t = line.trim();
+    if (!t) { out += '<br>'; return; }
+    var tagMatch = t.match(/^\[([^\]]+)\]$/);
+    if (tagMatch) {
+      var tag = tagMatch[1].toUpperCase();
+      var col = getPersonaColor(tag);
+      if (tag.startsWith('PARTIDA')) col = '#81c784';
+      else if (tag.startsWith('PUNTO')) col = '#ff8a65';
+      else if (tag.startsWith('ACUERDO')) col = '#90caf9';
+      out += '<div style="color:'+col+';font-weight:700;font-size:11px;letter-spacing:2px;margin:8px 0 2px;">▶ '+tag+'</div>';
+    } else if (t.match(/^---+$/)) {
+      out += '<hr style="border-color:#444;margin:6px 0;">';
+    } else {
+      out += '<div style="color:#eee;font-size:13px;line-height:1.6;">'+t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>';
+    }
+  });
+  prev.innerHTML = out || '<span style="color:#555;font-size:12px;">Empieza a escribir...</span>';
+}
+
+function onTAKeydown(e) {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    var ta = document.getElementById('editTA');
+    if (!ta) return;
+    var s = ta.selectionStart;
+    ta.value = ta.value.substring(0,s) + '    ' + ta.value.substring(ta.selectionEnd);
+    ta.selectionStart = ta.selectionEnd = s + 4;
+    onTAInput();
+  }
+}
+
+// ── MODALES ──
+function showPersonaModal() {
+  selectedPersonaColor = '#C9A84C';
+  var inp = document.getElementById('inputPersonaNombre');
+  if (inp) inp.value = '';
+  document.querySelectorAll('.color-swatch').forEach(function(s){ s.classList.remove('selected'); });
+  var first = document.querySelector('.color-swatch');
+  if (first) first.classList.add('selected');
+  var m = document.getElementById('modalPersona');
+  if (m) { m.style.display = 'flex'; setTimeout(function(){ if(inp) inp.focus(); }, 100); }
+}
+
+function selectPersonaColor(col, el) {
+  selectedPersonaColor = col;
+  document.querySelectorAll('.color-swatch').forEach(function(s){ s.classList.remove('selected'); });
+  el.classList.add('selected');
+}
+
+function insertPersona() {
+  var inp = document.getElementById('inputPersonaNombre');
+  if (!inp) return;
+  var nombre = inp.value.trim().toUpperCase();
+  if (!nombre) return;
+  personaColors[nombre] = selectedPersonaColor;
+  cancelModal('modalPersona');
+  insertTagDirect(nombre);
+}
+
+function showPartidaModal() {
+  ['pPartida','pConcepto','pMonto','pProveedor'].forEach(function(id){
+    var el = document.getElementById(id); if (el) el.value = '';
+  });
+  var es = document.getElementById('pEstatus'); if (es) es.value = '';
+  var m = document.getElementById('modalPartida');
+  if (m) { m.style.display = 'flex'; setTimeout(function(){ var p=document.getElementById('pPartida'); if(p) p.focus(); }, 100); }
+}
+
+function insertPartida() {
+  var partida = (document.getElementById('pPartida')||{}).value;
+  if (!partida || !partida.trim()) { alert('Ingresa el número de partida'); return; }
+  var concepto = ((document.getElementById('pConcepto')||{}).value||'').trim();
+  var monto = ((document.getElementById('pMonto')||{}).value||'').trim();
+  var proveedor = ((document.getElementById('pProveedor')||{}).value||'').trim();
+  var estatus = ((document.getElementById('pEstatus')||{}).value||'').trim();
+  var txt = '\n[PARTIDA ' + partida.trim() + ']';
+  if (concepto) txt += '\nConcepto: ' + concepto;
+  if (monto) txt += '\nMonto: $' + monto.replace(/^\$/,'') + ' pesos';
+  if (proveedor) txt += '\nProveedor: ' + proveedor;
+  if (estatus) txt += '\nEstatus: ' + estatus;
+  txt += '\n---\n';
+  insertAtCursor(txt);
+  cancelModal('modalPartida');
+}
+
+function showPuntoModal() {
+  var n = document.getElementById('ptNumero'); if (n) n.value = '';
+  var d = document.getElementById('ptDesc'); if (d) d.value = '';
+  var m = document.getElementById('modalPunto');
+  if (m) { m.style.display = 'flex'; setTimeout(function(){ if(n) n.focus(); }, 100); }
+}
+
+function insertPunto() {
+  var num = ((document.getElementById('ptNumero')||{}).value||'').trim();
+  var desc = ((document.getElementById('ptDesc')||{}).value||'').trim();
+  if (!num || !desc) { alert('Completa los campos requeridos'); return; }
+  insertAtCursor('\n[PUNTO ' + num + ']\n' + desc + '\n---\n');
+  cancelModal('modalPunto');
+}
+
+function showAcuerdoModal() {
+  var n = document.getElementById('acNum'); if (n) n.value = '';
+  var d = document.getElementById('acDesc'); if (d) d.value = '';
+  var r = document.getElementById('acResultado'); if (r) r.value = '';
+  var m = document.getElementById('modalAcuerdo');
+  if (m) { m.style.display = 'flex'; setTimeout(function(){ if(d) d.focus(); }, 100); }
+}
+
+function insertAcuerdo() {
+  var num = ((document.getElementById('acNum')||{}).value||'').trim();
+  var desc = ((document.getElementById('acDesc')||{}).value||'').trim();
+  var resultado = ((document.getElementById('acResultado')||{}).value||'').trim();
+  if (!desc) { alert('Describe el acuerdo'); return; }
+  var txt = '\n[ACUERDO' + (num ? ' '+num : '') + ']\n' + desc;
+  if (resultado) txt += '\nResultado: ' + resultado;
+  txt += '\n---\n';
+  insertAtCursor(txt);
+  cancelModal('modalAcuerdo');
+}
+
+function cancelModal(id) {
+  var el = document.getElementById(id);
+  if (el) el.style.display = 'none';
+}
+
+function loadTxtFile(input) {
+  var f = input.files[0]; if (!f) return;
+  var r = new FileReader();
+  r.onload = function(e) {
+    var ta = document.getElementById('editTA');
+    if (ta) ta.value = e.target.result;
+    onTAInput();
+  };
+  r.readAsText(f, 'UTF-8');
+  input.value = '';
+}
 </script>
 
 <script>
