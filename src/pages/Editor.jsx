@@ -18,10 +18,10 @@ export default function Editor() {
 
   const guionRef = useRef('')
   const opcionesRef = useRef(null)
-  const htmlContentRef = useRef('') // para portada
+  const estadoPortadaRef = useRef(null)
   const idRef = useRef(id)
   const nombreRef = useRef(nombre)
-  const pendingRef = useRef(null) // mensaje pendiente de enviar al iframe
+  const pendingRef = useRef(null)
 
   useEffect(() => { idRef.current = id }, [id])
   useEffect(() => { nombreRef.current = nombre }, [nombre])
@@ -29,26 +29,23 @@ export default function Editor() {
   // Escuchar mensajes del iframe
   useEffect(() => {
     const handler = async (e) => {
-      // PORTADA: guarda HTML completo cuando usuario da 💾 GUARDAR
-      if (e.data?.type === 'save_html') {
-        const html = e.data.html || ''
-        htmlContentRef.current = html
+      // PORTADA: usuario da 💾 GUARDAR en el iframe
+      if (e.data?.type === 'save_portada') {
+        const estado = e.data.estado
+        estadoPortadaRef.current = estado
         const currentId = idRef.current
-        if (!currentId) return // proyecto nuevo — esperar nombre
+        if (!currentId) return
         try {
           await api.put(`/api/projects/${currentId}`, {
             nombre: nombreRef.current,
-            html_content: html
+            html_content: JSON.stringify({ tipo: 'portada', estado })
           })
           setSaved(true)
           setTimeout(() => setSaved(false), 2000)
-        } catch (err) {
-          console.error('[REACT] Error save_html:', err)
-        }
+        } catch (err) { console.error('save_portada error:', err) }
         return
       }
-
-      // TELEPROMPTER: guarda guión cuando usuario da APLICAR
+      // TELEPROMPTER: usuario da APLICAR
       if (e.data?.type === 'save_guion') {
         const txt = e.data.text || ''
         const opciones = e.data.opciones || null
@@ -56,24 +53,20 @@ export default function Editor() {
         if (opciones) opcionesRef.current = opciones
         const currentId = idRef.current
         if (!currentId) return
-        const payload = JSON.stringify({ guion: txt, opciones: opciones || opcionesRef.current })
         try {
           await api.put(`/api/projects/${currentId}`, {
             nombre: nombreRef.current,
-            html_content: payload
+            html_content: JSON.stringify({ tipo: 'teleprompter', guion: txt, opciones: opciones || opcionesRef.current })
           })
           setSaved(true)
           setTimeout(() => setSaved(false), 2000)
-        } catch (err) {
-          console.error('[REACT] Error save_guion:', err)
-        }
+        } catch (err) { console.error('save_guion error:', err) }
       }
     }
     window.addEventListener('message', handler)
     return () => window.removeEventListener('message', handler)
   }, [])
 
-  // Cargar proyecto al montar
   useEffect(() => {
     if (!id) {
       setNombre(tipo === 'portada' ? 'Nueva Portada' : 'Nuevo Teleprompter')
@@ -87,29 +80,40 @@ export default function Editor() {
       const { data } = await api.get(`/api/projects/${id}`)
       setNombre(data.nombre)
       const content = data.html_content || ''
+      let pending = null
 
       if (tipo === 'portada') {
-        htmlContentRef.current = content
-        // Enviar al iframe cuando esté listo
-        pendingRef.current = { type: 'load_html', html: content }
-        if (iframeLoaded) sendPending()
+        // Parsear JSON de portada
+        try {
+          const parsed = JSON.parse(content)
+          estadoPortadaRef.current = parsed.estado || null
+          pending = { type: 'load_portada', estado: parsed.estado }
+        } catch(e) {
+          // Legacy HTML — extraer estado básico
+          pending = null
+        }
       } else {
-        // Teleprompter: parsear JSON o texto plano
-        const isJSON = content.trim().startsWith('{')
-        const isHTML = content.trim().startsWith('<!DOCTYPE') || content.trim().startsWith('<html')
-        let guion = content
-        let opciones = null
-        if (isJSON) {
-          try { const p = JSON.parse(content); guion = p.guion||''; opciones = p.opciones||null } catch(e){}
-        } else if (isHTML) {
-          const m = content.match(/window\.__GUION__\s*=\s*`([\s\S]*?)`;/)
-          guion = m ? m[1].replace(/\\`/g,'`').replace(/\\\\/g,'\\') : ''
+        // Teleprompter
+        let guion = '', opciones = null
+        try {
+          const parsed = JSON.parse(content)
+          guion = parsed.guion || ''
+          opciones = parsed.opciones || null
+        } catch(e) {
+          // Legacy: texto plano o HTML
+          const isHTML = content.trim().startsWith('<!DOCTYPE') || content.trim().startsWith('<html')
+          if (isHTML) {
+            const m = content.match(/window\.__GUION__\s*=\s*`([\s\S]*?)`;/)
+            guion = m ? m[1].replace(/\\`/g,'`').replace(/\\\\/g,'\\') : ''
+          } else { guion = content }
         }
         guionRef.current = guion
         if (opciones) opcionesRef.current = opciones
-        pendingRef.current = { type: 'load_guion', text: guion, opciones }
-        if (iframeLoaded) sendPending()
+        pending = { type: 'load_guion', text: guion, opciones }
       }
+
+      pendingRef.current = pending
+      if (iframeLoaded && pending) sendPending()
     } catch (e) {
       alert('Error al cargar proyecto')
       navigate('/projects')
@@ -120,17 +124,13 @@ export default function Editor() {
     if (!pendingRef.current || !iframeRef.current) return
     const msg = pendingRef.current
     pendingRef.current = null
-    // Reintentar hasta 15 veces con delay
     let tries = 0
     const send = () => {
       tries++
-      try {
-        iframeRef.current.contentWindow.postMessage(msg, '*')
-      } catch(e) {
-        if (tries < 15) setTimeout(send, 200)
-      }
+      try { iframeRef.current.contentWindow.postMessage(msg, '*') }
+      catch(e) { if (tries < 15) setTimeout(send, 200) }
     }
-    setTimeout(send, 200)
+    setTimeout(send, 300)
   }
 
   const handleIframeLoad = () => {
@@ -138,31 +138,29 @@ export default function Editor() {
     if (pendingRef.current) sendPending()
   }
 
-  // Guardar nuevo proyecto
   const handleSaveNew = async () => {
     setSaving(true)
     try {
       const content = await new Promise((resolve) => {
         const h = (e) => {
-          if (tipo === 'portada' && e.data?.type === 'save_html') {
+          if (tipo === 'portada' && e.data?.type === 'portada_data') {
             window.removeEventListener('message', h); clearTimeout(t)
-            resolve(e.data.html || '')
+            resolve(JSON.stringify({ tipo: 'portada', estado: e.data.estado }))
           }
           if (tipo === 'teleprompter' && e.data?.type === 'guion_data') {
             window.removeEventListener('message', h); clearTimeout(t)
-            resolve(JSON.stringify({ guion: e.data.text||'', opciones: e.data.opciones||opcionesRef.current }))
+            resolve(JSON.stringify({ tipo: 'teleprompter', guion: e.data.text||'', opciones: e.data.opciones||opcionesRef.current }))
           }
         }
         window.addEventListener('message', h)
         const t = setTimeout(() => {
           window.removeEventListener('message', h)
-          resolve(tipo === 'portada' ? htmlContentRef.current : JSON.stringify({ guion: guionRef.current, opciones: opcionesRef.current }))
+          const fallback = tipo === 'portada'
+            ? JSON.stringify({ tipo: 'portada', estado: estadoPortadaRef.current })
+            : JSON.stringify({ tipo: 'teleprompter', guion: guionRef.current, opciones: opcionesRef.current })
+          resolve(fallback)
         }, 3000)
-        if (tipo === 'portada') {
-          iframeRef.current?.contentWindow?.postMessage('get_html', '*')
-        } else {
-          iframeRef.current?.contentWindow?.postMessage('get_guion', '*')
-        }
+        iframeRef.current?.contentWindow?.postMessage(tipo === 'portada' ? 'get_portada' : 'get_guion', '*')
       })
 
       const { data } = await api.post('/api/projects', { nombre, tipo, html_content: content })
@@ -193,7 +191,6 @@ export default function Editor() {
           )}
         </div>
       </div>
-
       <div className="editor-frame">
         <iframe
           ref={iframeRef}
@@ -204,20 +201,14 @@ export default function Editor() {
           onLoad={handleIframeLoad}
         />
       </div>
-
       {showSaveModal && !id && (
         <div className="modal-overlay" onClick={() => setShowSaveModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-title">💾 Guardar Proyecto</div>
             <label className="label">Nombre del proyecto</label>
-            <input
-              className="input"
-              value={nombre}
-              onChange={e => setNombre(e.target.value)}
-              placeholder="Ej: 14va Sesión Ordinaria"
-              autoFocus
-              onKeyDown={e => e.key === 'Enter' && nombre.trim() && handleSaveNew()}
-            />
+            <input className="input" value={nombre} onChange={e => setNombre(e.target.value)}
+              placeholder="Ej: 14va Sesión Ordinaria" autoFocus
+              onKeyDown={e => e.key === 'Enter' && nombre.trim() && handleSaveNew()} />
             <div style={{display:'flex',gap:10,marginTop:20,justifyContent:'flex-end'}}>
               <button className="btn btn-ghost" onClick={() => setShowSaveModal(false)}>Cancelar</button>
               <button className="btn btn-gold" onClick={handleSaveNew} disabled={saving || !nombre.trim()}>
