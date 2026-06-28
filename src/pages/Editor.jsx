@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../api'
 import './Editor.css'
@@ -18,6 +18,8 @@ export default function Editor() {
   const [iframeSrc, setIframeSrc] = useState('')
   const idRef = useRef(id)
   const nombreRef = useRef(nombre)
+  // Flag para evitar que el auto-save intercepte el get_html del guardado manual
+  const manualSaveInProgress = useRef(false)
 
   useEffect(() => { idRef.current = id }, [id])
   useEffect(() => { nombreRef.current = nombre }, [nombre])
@@ -30,14 +32,13 @@ export default function Editor() {
     }
   }, [id, tipo])
 
-  // Escuchar save_html del iframe — auto-guardar si proyecto existente
+  // Auto-save: solo cuando NO hay un guardado manual en progreso
   useEffect(() => {
     const handler = async (e) => {
       if (e.data?.type !== 'save_html' || !e.data?.html) return
+      if (manualSaveInProgress.current) return // el guardado manual lo maneja él mismo
       const content = e.data.html
       setHtmlContent(content)
-
-      // Si hay id guardamos automáticamente
       const currentId = idRef.current
       if (currentId) {
         try {
@@ -82,7 +83,7 @@ export default function Editor() {
 
       const timeout = setTimeout(() => {
         window.removeEventListener('message', handler)
-        resolve(htmlContent)
+        resolve(htmlContent) // fallback: usar el HTML que tenemos en memoria
       }, 3000)
 
       try {
@@ -97,9 +98,10 @@ export default function Editor() {
 
   const handleSave = async () => {
     setSaving(true)
+    manualSaveInProgress.current = true
     try {
       const content = await requestHTMLFromIframe()
-      if (!content) { alert('No se pudo obtener el contenido'); setSaving(false); return }
+      if (!content) { alert('No se pudo obtener el contenido'); return }
 
       if (id) {
         await api.put(`/api/projects/${id}`, { nombre, html_content: content })
@@ -115,6 +117,7 @@ export default function Editor() {
       alert('Error al guardar: ' + (e.response?.data?.error || e.message))
     } finally {
       setSaving(false)
+      manualSaveInProgress.current = false
     }
   }
 
