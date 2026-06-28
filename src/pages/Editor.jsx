@@ -150,7 +150,7 @@ export default function Editor() {
         content = await new Promise((resolve) => {
           const h = (e) => {
             // Aceptar tanto portada_data como save_portada
-            if (e.data?.type === 'portada_data' || e.data?.type === 'save_portada') {
+            if (e.data?.type === 'portada_data') {
               const estado = e.data.estado
               window.removeEventListener('message', h)
               clearTimeout(t)
