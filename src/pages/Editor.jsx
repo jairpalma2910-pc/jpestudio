@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../api'
 import './Editor.css'
 
-const BASE_TELEPROMPTER_URL = '/jpestudio/teleprompter.html'
-const BASE_PORTADA_URL = '/jpestudio/portada.html'
+const TELEPROMPTER_URL = '/jpestudio/teleprompter.html'
+const PORTADA_URL = '/jpestudio/portada.html'
 
 export default function Editor() {
   const { tipo, id } = useParams()
@@ -14,13 +14,14 @@ export default function Editor() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [showSaveModal, setShowSaveModal] = useState(false)
-  const [iframeSrc] = useState(
-    tipo === 'portada' ? BASE_PORTADA_URL : BASE_TELEPROMPTER_URL
-  )
-  // Guardamos el guión en texto plano aquí en React
-  const guionRef = useRef('')
+  const [iframeReady, setIframeReady] = useState(false)
+
+  // Refs para evitar stale closures
+  const guionRef = useRef('')       // texto plano del guión
   const idRef = useRef(id)
   const nombreRef = useRef(nombre)
+  const iframeReadyRef = useRef(false)
+  const pendingGuionRef = useRef(null) // guión pendiente de enviar al iframe
 
   useEffect(() => { idRef.current = id }, [id])
   useEffect(() => { nombreRef.current = nombre }, [nombre])
@@ -28,17 +29,16 @@ export default function Editor() {
   // Escuchar mensajes del iframe
   useEffect(() => {
     const handler = async (e) => {
-      // El teleprompter envía el guión actualizado cuando el usuario da APLICAR
+      // APLICAR: el teleprompter envía el guión actualizado
       if (e.data?.type === 'save_guion') {
         const txt = e.data.text || ''
         guionRef.current = txt
-        // Auto-guardar si proyecto existente
         const currentId = idRef.current
         if (!currentId) return
         try {
           await api.put(`/api/projects/${currentId}`, {
             nombre: nombreRef.current,
-            html_content: txt   // guardamos texto plano
+            html_content: txt
           })
           setSaved(true)
           setTimeout(() => setSaved(false), 2000)
@@ -46,7 +46,7 @@ export default function Editor() {
           console.error('Auto-save error:', err)
         }
       }
-      // Respuesta al 'get_guion' para guardar proyecto nuevo
+      // Respuesta a get_guion (para guardar nuevo proyecto)
       if (e.data?.type === 'guion_data') {
         guionRef.current = e.data.text || ''
       }
@@ -55,10 +55,11 @@ export default function Editor() {
     return () => window.removeEventListener('message', handler)
   }, [])
 
-  // Cargar proyecto existente y enviar guión al iframe
+  // Cargar datos del proyecto
   useEffect(() => {
     if (!id) {
       setNombre(tipo === 'portada' ? 'Nueva Portada' : 'Nuevo Teleprompter')
+      guionRef.current = ''
       return
     }
     loadProject()
@@ -68,20 +69,35 @@ export default function Editor() {
     try {
       const { data } = await api.get(`/api/projects/${id}`)
       setNombre(data.nombre)
-      // html_content puede ser texto plano del guión O HTML legacy
-      // Detectar: si empieza con <!DOCTYPE o <html es HTML legacy
       const content = data.html_content || ''
+      // Detectar si es HTML legacy (versión anterior guardaba HTML completo)
       const isLegacyHTML = content.trim().startsWith('<!DOCTYPE') || content.trim().startsWith('<html')
-
       if (isLegacyHTML) {
-        // Proyecto guardado con la arquitectura anterior (HTML completo)
-        // Extraer el guión del HTML
-        const guionMatch = content.match(/window\.__GUION__\s*=\s*`([\s\S]*?)`;/)
-        const guion = guionMatch ? guionMatch[1].replace(/\\`/g,'`').replace(/\\\\/g,'\\') : ''
-        guionRef.current = guion
+        // Extraer guión del HTML legacy
+        const m = content.match(/window\.__GUION__\s*=\s*`([\s\S]*?)`;/)
+        guionRef.current = m ? m[1].replace(/\\`/g, '`').replace(/\\\\/g, '\\') : ''
+        if (!guionRef.current) {
+          // Último fallback: extraer del DOM del HTML guardado
+          const scMatch = content.match(/<div id="sc">([\s\S]*?)<\/div>\s*(?:<!--|<button)/)
+          if (scMatch) {
+            // convertir los .bloque a texto plano
+            const bloques = scMatch[1].matchAll(/<div class="quien"[^>]*>(.*?)<\/div>[\s\S]*?<div class="texto"[^>]*>([\s\S]*?)<\/div>/g)
+            let txt = ''
+            for (const b of bloques) {
+              txt += '[' + b[1].trim() + ']\n' + b[2].trim() + '\n\n'
+            }
+            guionRef.current = txt
+          }
+        }
       } else {
-        // Texto plano del guión
         guionRef.current = content
+      }
+      // Si el iframe ya está listo, enviar el guión ahora
+      if (iframeReadyRef.current) {
+        sendGuionToIframe()
+      } else {
+        // Guardar pendiente para enviar cuando el iframe esté listo
+        pendingGuionRef.current = guionRef.current
       }
     } catch (e) {
       alert('Error al cargar proyecto')
@@ -89,41 +105,57 @@ export default function Editor() {
     }
   }
 
-  // Cuando el iframe carga, si hay proyecto, enviar el guión
-  const handleIframeLoad = () => {
-    if (!id) return // nuevo: no enviar nada, el iframe arranca vacío
-    if (!guionRef.current) return
+  const sendGuionToIframe = () => {
+    const txt = guionRef.current
+    if (!txt || !iframeRef.current) return
     try {
-      iframeRef.current?.contentWindow?.postMessage({
-        type: 'load_guion',
-        text: guionRef.current
-      }, '*')
+      iframeRef.current.contentWindow.postMessage({ type: 'load_guion', text: txt }, '*')
     } catch(e) {}
   }
 
-  // Pedir guión al iframe y guardar nuevo proyecto
+  // El iframe terminó de cargar
+  const handleIframeLoad = () => {
+    iframeReadyRef.current = true
+    setIframeReady(true)
+    // Si hay guión pendiente (proyecto existente cargó antes que el iframe)
+    if (pendingGuionRef.current) {
+      setTimeout(() => {
+        try {
+          iframeRef.current?.contentWindow?.postMessage(
+            { type: 'load_guion', text: pendingGuionRef.current }, '*'
+          )
+        } catch(e) {}
+        pendingGuionRef.current = null
+      }, 100) // pequeño delay para que el JS del iframe esté listo
+    }
+    // Si ya teníamos el guión cargado (iframe cargó después)
+    if (id && guionRef.current && !pendingGuionRef.current) {
+      setTimeout(() => sendGuionToIframe(), 100)
+    }
+  }
+
+  // Guardar nuevo proyecto
   const handleSaveNew = async () => {
     setSaving(true)
     try {
-      // Pedir guión actual al iframe
       const txt = await new Promise((resolve) => {
-        const handler = (e) => {
+        const localHandler = (e) => {
           if (e.data?.type === 'guion_data') {
-            window.removeEventListener('message', handler)
+            window.removeEventListener('message', localHandler)
             clearTimeout(timeout)
             resolve(e.data.text || '')
           }
         }
-        window.addEventListener('message', handler)
+        window.addEventListener('message', localHandler)
         const timeout = setTimeout(() => {
-          window.removeEventListener('message', handler)
+          window.removeEventListener('message', localHandler)
           resolve(guionRef.current)
         }, 3000)
         try {
           iframeRef.current?.contentWindow?.postMessage('get_guion', '*')
         } catch(e) {
           clearTimeout(timeout)
-          window.removeEventListener('message', handler)
+          window.removeEventListener('message', localHandler)
           resolve(guionRef.current)
         }
       })
@@ -132,7 +164,7 @@ export default function Editor() {
       const { data } = await api.post('/api/projects', {
         nombre,
         tipo,
-        html_content: txt  // texto plano del guión
+        html_content: txt
       })
       navigate(`/editor/${tipo}/${data.id}`, { replace: true })
     } catch (e) {
@@ -167,7 +199,7 @@ export default function Editor() {
       <div className="editor-frame">
         <iframe
           ref={iframeRef}
-          src={iframeSrc}
+          src={tipo === 'portada' ? PORTADA_URL : TELEPROMPTER_URL}
           title={`Editor ${tipo}`}
           className="editor-iframe"
           sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
@@ -189,14 +221,8 @@ export default function Editor() {
               onKeyDown={e => e.key === 'Enter' && nombre.trim() && handleSaveNew()}
             />
             <div style={{display:'flex',gap:10,marginTop:20,justifyContent:'flex-end'}}>
-              <button className="btn btn-ghost" onClick={() => setShowSaveModal(false)}>
-                Cancelar
-              </button>
-              <button
-                className="btn btn-gold"
-                onClick={handleSaveNew}
-                disabled={saving || !nombre.trim()}
-              >
+              <button className="btn btn-ghost" onClick={() => setShowSaveModal(false)}>Cancelar</button>
+              <button className="btn btn-gold" onClick={handleSaveNew} disabled={saving || !nombre.trim()}>
                 {saving ? '⏳ Guardando...' : '💾 Guardar'}
               </button>
             </div>
