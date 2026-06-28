@@ -370,7 +370,6 @@ iVBORw0KGgoAAAANSUhEUgAABDgAAAQ4CAYAAADsEGyPAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAAB
   </div>
 
   <button class="btn-red" style="font-size:10px;" onclick="clearFx()">Quitar todos los efectos</button>
-
   <button class="btn-red" onclick="resetPos()">Reset todo</button>
   <div style="height:20px;"></div>
 </div>
@@ -708,24 +707,8 @@ function clearFx() {
 function resetPos() { location.reload(); }
 
 
-
 function togglePanel() {
   document.getElementById('editPanel').classList.toggle('hidden');
-}
-</script>
-
-<script>
-// Ocultar panel si es modo presentacion
-if(window.location !== window.parent.location){
-  // Estamos dentro de un iframe
-  window.addEventListener('message', function(e){
-    if(e.data === 'present_mode'){
-      var panel = document.getElementById('editPanel');
-      var btn = document.getElementById('toggleBarBtn');
-      if(panel) panel.style.display = 'none';
-      if(btn) btn.style.display = 'none';
-    }
-  });
 }
 </script>
 </body>
