@@ -712,8 +712,8 @@ function applyGuionText(raw){
   });
   flushBuf();
   if(inBloque) out+='</div>';
-  // Aplicar via applyGuionText para consistencia
-  applyGuionText(document.getElementById('editTA').value);
+  sc.innerHTML = out || '<div class="bloque"><div class="texto">Sin contenido</div></div>';
+  pos=0; sc.style.transform='translateY(0)'; lastBloque=null;
 }
 
 function openEdit(){
