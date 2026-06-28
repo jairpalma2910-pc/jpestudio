@@ -598,7 +598,7 @@ function getOpciones(){
   var bloques = document.querySelectorAll('.texto');
   var quienes = document.querySelectorAll('.quien');
   return {
-    bg: document.body.style.background || '',
+    bg: window.__BG__ || document.body.style.background || '',
     txtColor: bloques.length ? bloques[0].style.color : '',
     txtSize: bloques.length ? bloques[0].style.fontSize : '',
     quienSize: quienes.length ? quienes[0].style.fontSize : '',
@@ -654,7 +654,14 @@ function togglePanel(){
   var p=document.getElementById('panel');
   p.style.display=(p.style.display==='flex')?'none':'flex';
 }
-function setBg(c){ document.body.style.background=c; var gs=['#g1','#g2']; var alpha=c; gs.forEach(function(id){ var el=document.getElementById(id.replace('#','')); if(el){ el.style.background=id==='#g1'?'linear-gradient(to bottom,'+c+',transparent)'  :'linear-gradient(to top,'+c+',transparent)'; } }); }
+function setBg(c){
+  window.__BG__=c;
+  document.body.style.background=c;
+  var g1=document.getElementById('g1');
+  var g2=document.getElementById('g2');
+  if(g1) g1.style.background='linear-gradient(to bottom,'+c+',transparent)';
+  if(g2) g2.style.background='linear-gradient(to top,'+c+',transparent)';
+}
 function setTextCol(c){ document.querySelectorAll('.texto').forEach(function(e){ e.style.color=c; }); }
 function setHighlight(c){ document.querySelectorAll('.r').forEach(function(e){ e.style.color=c; }); }
 function setTxtSz(v){ document.querySelectorAll('.texto').forEach(function(e){ e.style.fontSize=v+'px'; }); document.getElementById('szl').textContent=v+'px'; }
@@ -668,12 +675,54 @@ function togCrono(btn){ var c=document.getElementById('crono'); var vis=c.style.
 function startCrono(){ cronoInt=setInterval(function(){ cronoSecs++; var h=Math.floor(cronoSecs/3600),m=Math.floor((cronoSecs%3600)/60),s=cronoSecs%60; document.getElementById('cronoTime').textContent=[h,m,s].map(function(x){ return x<10?'0'+x:''+x; }).join(':'); },1000); }
 function togQR(btn){ var q=document.getElementById('qrPanel'); var vis=q.style.display==='block'; q.style.display=vis?'none':'block'; }
 function toggleGuia(){ ['ft','fb'].forEach(function(id){ var e=document.getElementById(id); e.style.display=e.style.display==='block'?'none':'block'; }); }
-function applyEfectos(){}
-function clearEfectos(){}
-function reapplyColors(){}
+function getPersonaColor(quien){
+  if(!quien) return '#C9A84C';
+  var q=quien.toUpperCase();
+  if(q.includes('SECRETARIA')) return document.getElementById('colSec').value||'#64b5f6';
+  if(q.includes('ADMINISTRATIVA')||q.includes('INZUNZA')) return document.getElementById('colAdm').value||'#81c784';
+  if(q.includes('PUNTO')||q.includes('───')) return document.getElementById('colPunto').value||'#ff8a65';
+  return document.getElementById('colPres').value||'#C9A84C';
+}
+function applyEfectos(){
+  var efColor=document.getElementById('efColor').checked;
+  var efCaja=document.getElementById('efCaja').checked;
+  var efLateral=document.getElementById('efLateral').checked;
+  var efPausa=document.getElementById('efPausa').checked;
+  autoPause=efPausa;
+  document.querySelectorAll('.bloque').forEach(function(b){
+    var q=b.querySelector('.quien');
+    if(!q) return;
+    var col=getPersonaColor(q.textContent);
+    if(efColor) q.style.color=col;
+    if(efCaja){ q.style.background=col; q.style.color='#000'; q.style.padding='2px 8px'; q.style.borderRadius='4px'; }
+    if(efLateral) b.style.borderLeft='4px solid '+col;
+    else b.style.borderLeft='';
+  });
+  alert('Efectos aplicados');
+}
+function clearEfectos(){
+  document.querySelectorAll('.bloque').forEach(function(b){
+    var q=b.querySelector('.quien');
+    if(q){ q.style.background=''; q.style.padding=''; q.style.borderRadius=''; }
+    b.style.borderLeft='';
+  });
+  autoPause=false;
+}
+function reapplyColors(){
+  document.querySelectorAll('.bloque').forEach(function(b){
+    var q=b.querySelector('.quien');
+    if(!q) return;
+    q.style.color=getPersonaColor(q.textContent);
+  });
+}
 
 // LOGO DRAG
-lw.addEventListener('mousedown',function(e){ ldrag=true; lox=e.clientX-lx; loy=e.clientY-ly; });
+if(lw){
+  lw.addEventListener('mousedown',function(e){ ldrag=true; lox=e.clientX-lx; loy=e.clientY-ly; e.preventDefault(); });
+  lw.addEventListener('touchstart',function(e){ ldrag=true; lox=e.touches[0].clientX-lx; loy=e.touches[0].clientY-ly; },{passive:true});
+  document.addEventListener('touchmove',function(e){ if(!ldrag) return; lx=e.touches[0].clientX-lox; ly=e.touches[0].clientY-loy; lw.style.left=lx+'px'; lw.style.top=ly+'px'; },{passive:true});
+  document.addEventListener('touchend',function(){ ldrag=false; });
+}
 document.addEventListener('mousemove',function(e){ if(!ldrag) return; lx=e.clientX-lox; ly=e.clientY-loy; lw.style.left=lx+'px'; lw.style.top=ly+'px'; });
 document.addEventListener('mouseup',function(){ ldrag=false; });
 
@@ -1096,7 +1145,7 @@ window.addEventListener('message', function(e) {
     // Restaurar opciones visuales si vienen guardadas
     if (data.opciones) {
       var op = data.opciones;
-      if (op.bg) { document.body.style.background = op.bg; }
+      if (op.bg) { setBg(op.bg); }
       if (op.txtColor) document.querySelectorAll('.texto').forEach(function(e){ e.style.color=op.txtColor; });
       if (op.txtSize) document.querySelectorAll('.texto').forEach(function(e){ e.style.fontSize=op.txtSize; });
       if (op.quienSize) document.querySelectorAll('.quien').forEach(function(e){ e.style.fontSize=op.quienSize; });
