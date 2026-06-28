@@ -14,14 +14,13 @@ export default function Editor() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [showSaveModal, setShowSaveModal] = useState(false)
-  const [iframeLoaded, setIframeLoaded] = useState(false)
 
   const guionRef = useRef('')
   const opcionesRef = useRef(null)
   const estadoPortadaRef = useRef(null)
   const idRef = useRef(id)
   const nombreRef = useRef(nombre)
-  const pendingRef = useRef(null)
+  const iframeReadyRef = useRef(false) // REF no estado — evita stale closures
 
   useEffect(() => { idRef.current = id }, [id])
   useEffect(() => { nombreRef.current = nombre }, [nombre])
@@ -29,12 +28,11 @@ export default function Editor() {
   // Escuchar mensajes del iframe
   useEffect(() => {
     const handler = async (e) => {
-      // PORTADA: usuario da 💾 GUARDAR en el iframe → actualizar ref SIEMPRE
       if (e.data?.type === 'save_portada') {
         const estado = e.data.estado
         estadoPortadaRef.current = estado
         const currentId = idRef.current
-        if (!currentId) return  // proyecto nuevo: solo actualizar ref
+        if (!currentId) return
         try {
           await api.put(`/api/projects/${currentId}`, {
             nombre: nombreRef.current,
@@ -45,12 +43,10 @@ export default function Editor() {
         } catch (err) { console.error('save_portada error:', err) }
         return
       }
-      // PORTADA: respuesta a get_portada → actualizar ref
       if (e.data?.type === 'portada_data') {
         estadoPortadaRef.current = e.data.estado
         return
       }
-      // TELEPROMPTER: usuario da APLICAR
       if (e.data?.type === 'save_guion') {
         const txt = e.data.text || ''
         const opciones = e.data.opciones || null
@@ -67,7 +63,6 @@ export default function Editor() {
           setTimeout(() => setSaved(false), 2000)
         } catch (err) { console.error('save_guion error:', err) }
       }
-      // TELEPROMPTER: respuesta a get_guion → actualizar ref
       if (e.data?.type === 'guion_data') {
         guionRef.current = e.data.text || ''
         if (e.data.opciones) opcionesRef.current = e.data.opciones
@@ -90,14 +85,14 @@ export default function Editor() {
       const { data } = await api.get(`/api/projects/${id}`)
       setNombre(data.nombre)
       const content = data.html_content || ''
-      let pending = null
+      let msg = null
 
       if (tipo === 'portada') {
         try {
           const parsed = JSON.parse(content)
           estadoPortadaRef.current = parsed.estado || null
-          pending = { type: 'load_portada', estado: parsed.estado }
-        } catch(e) { pending = null }
+          msg = { type: 'load_portada', estado: parsed.estado }
+        } catch(e) { msg = null }
       } else {
         let guion = '', opciones = null
         try {
@@ -113,38 +108,44 @@ export default function Editor() {
         }
         guionRef.current = guion
         if (opciones) opcionesRef.current = opciones
-        pending = { type: 'load_guion', text: guion, opciones }
+        msg = { type: 'load_guion', text: guion, opciones }
       }
 
-      pendingRef.current = pending
-      if (iframeLoaded && pending) sendPending()
+      if (!msg) return
+
+      // Enviar al iframe — si ya está listo enviar ahora, sino reintentar
+      const enviar = (intentos) => {
+        if (!iframeRef.current) {
+          if (intentos < 20) setTimeout(() => enviar(intentos + 1), 200)
+          return
+        }
+        if (!iframeReadyRef.current) {
+          // Iframe montado pero JS no listo aún, esperar
+          if (intentos < 20) setTimeout(() => enviar(intentos + 1), 200)
+          return
+        }
+        try {
+          iframeRef.current.contentWindow.postMessage(msg, '*')
+        } catch(e) {
+          if (intentos < 20) setTimeout(() => enviar(intentos + 1), 200)
+        }
+      }
+      enviar(0)
     } catch (e) {
       alert('Error al cargar proyecto')
       navigate('/projects')
     }
   }
 
-  const sendPending = () => {
-    if (!pendingRef.current || !iframeRef.current) return
-    const msg = pendingRef.current
-    pendingRef.current = null
-    let tries = 0
-    const send = () => {
-      tries++
-      try { iframeRef.current.contentWindow.postMessage(msg, '*') }
-      catch(e) { if (tries < 15) setTimeout(send, 200) }
-    }
-    setTimeout(send, 300)
-  }
-
   const handleIframeLoad = () => {
-    setIframeLoaded(true)
-    if (pendingRef.current) sendPending()
+    // La portada es ~1.3MB y tiene recursos pesados, esperar más
+    const delay = tipo === 'portada' ? 1500 : 500
+    setTimeout(() => {
+      iframeReadyRef.current = true
+    }, delay)
   }
 
-  // Pedir estado al iframe y abrir modal
   const handleClickSaveNew = () => {
-    // Pedir estado antes de abrir el modal
     try {
       if (tipo === 'portada') {
         iframeRef.current?.contentWindow?.postMessage('get_portada', '*')
@@ -152,11 +153,9 @@ export default function Editor() {
         iframeRef.current?.contentWindow?.postMessage('get_guion', '*')
       }
     } catch(e) {}
-    // Esperar 500ms a que llegue el estado, luego abrir modal
-    setTimeout(() => setShowSaveModal(true), 500)
+    setTimeout(() => setShowSaveModal(true), 600)
   }
 
-  // Guardar nuevo proyecto usando los refs que ya están actualizados
   const handleSaveNew = async () => {
     setSaving(true)
     try {
@@ -166,7 +165,6 @@ export default function Editor() {
       } else {
         content = JSON.stringify({ tipo: 'teleprompter', guion: guionRef.current, opciones: opcionesRef.current })
       }
-
       const { data } = await api.post('/api/projects', { nombre, tipo, html_content: content })
       navigate(`/editor/${tipo}/${data.id}`, { replace: true })
     } catch (e) {
