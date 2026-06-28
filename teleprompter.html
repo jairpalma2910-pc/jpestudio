@@ -798,13 +798,7 @@ function applyEdit(){
       window.parent.postMessage({type:'save_guion', text:guionTexto}, '*');
     }
   } catch(e2) {}
-  // Notificar al padre
-  try{
-    var fullHtml='<!DOCTYPE html>'+document.documentElement.outerHTML;
-    if(window.parent && window.parent!==window){
-      window.parent.postMessage({type:'save_html',html:fullHtml},'*');
-    }
-  }catch(e2){}
+  // (guardado via save_guion arriba)
 
   // Feedback visual SIN cerrar
   var btn=document.getElementById('editApplyBtn');
@@ -861,6 +855,11 @@ function updatePreview(){
   var ta=document.getElementById('editTA');
   var prev=document.getElementById('editPreviewContent');
   if(!prev||!ta) return;
+  // Detectar tema UNA VEZ antes del loop
+  var _btn=document.getElementById('editThemeBtn');
+  var isLight=_btn && _btn.textContent.includes('OSCURO');
+  var txtCol=isLight?'#111':'#ccc';
+  var hrCol=isLight?'#ccc':'#444';
   var lines=ta.value.split('\n');
   var out='';
   lines.forEach(function(line){
@@ -875,11 +874,8 @@ function updatePreview(){
       else if(tag.includes('ACUERDO')) col='#90caf9';
       out+='<div style="color:'+col+';font-weight:700;font-size:11px;letter-spacing:2px;margin:8px 0 2px;">▶ '+tag+'</div>';
     } else if(t.match(/^-{3,}$/)){
-      out+='<hr style="border-color:#444;margin:6px 0;">';
+      out+='<hr style="border-color:'+hrCol+';margin:6px 0;">';
     } else {
-      var _btn=document.getElementById('editThemeBtn');
-      var _isLight=_btn && _btn.textContent.includes('OSCURO');
-      var txtCol=_isLight?'#222':'#ccc';
       out+='<div style="color:'+txtCol+';font-size:13px;line-height:1.6;">'+t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>';
     }
   });
@@ -1088,6 +1084,8 @@ function toggleEditTheme(){
     tb.style.background='#181818'; sb.style.background='#0d0d0d';
     btn.textContent='☀ CLARO'; btn.style.background='#fff'; btn.style.color='#000';
   }
+  // Regenerar preview con nuevo tema
+  updatePreview();
 }
 function cancelModal(id){
   var el=document.getElementById(id);
