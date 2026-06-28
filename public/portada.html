@@ -2,12 +2,11 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SITT - Portada Sesión</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { width:100%; height:100vh; overflow:hidden; background:#6B1020; font-family:Arial,sans-serif; display:flex; align-items:center; justify-content:center; }
-.bg { position:fixed; top:0;left:0;right:0;bottom:0; background:radial-gradient(ellipse at center, #7d1525 0%, #6B1020 55%, #500e18 100%); }
+body { width:100vw; height:100vh; overflow:hidden; background:#6B1020; font-family:Arial,sans-serif; display:flex; align-items:center; justify-content:center; }
+.bg { position:fixed; inset:0; background:radial-gradient(ellipse at center, #7d1525 0%, #6B1020 55%, #500e18 100%); }
 
 /* DRAGÓN REAL - vuela de izquierda a derecha en bucle */
 .dragon1 {
@@ -721,7 +720,7 @@ window.addEventListener('message', function(e) {
     e.source.postMessage({ type: 'save_html', html: h }, '*');
   }
   if (e.data === 'present_mode') {
-    var ids = ['editPanel','toggleBarBtn','epBtn'];
+    var ids = ['editPanel','toggleBarBtn'];
     ids.forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display='none'; });
   }
 });
