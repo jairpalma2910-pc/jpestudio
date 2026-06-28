@@ -190,43 +190,88 @@ html,body{width:100%;height:100%;overflow:hidden;background:#6B1020;font-family:
 #ctrlFloatBtn:hover { background: rgba(201,168,76,0.15); border-color: #C9A84C; }
 #ctrlFloatBtn:active { cursor: grabbing; }
 
-/* MODAL QR */
+/* MODAL QR - PANTALLA COMPLETA */
 #ctrlModal {
   position: fixed;
   inset: 0;
   z-index: 10000;
-  background: rgba(0,0,0,0.85);
-  backdrop-filter: blur(6px);
+  background: linear-gradient(135deg, #0a0005 0%, #1a000d 50%, #0a0005 100%);
   display: none;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  font-family: Arial, sans-serif;
 }
-#ctrlModalBox {
-  background: #0a0005;
-  border: 2px solid #C9A84C;
-  border-radius: 20px;
-  padding: 32px 28px 24px;
-  text-align: center;
-  position: relative;
-  min-width: 280px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+#ctrlModal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(201,168,76,0.08) 0%, transparent 70%);
+  pointer-events: none;
 }
 #ctrlModalClose {
-  position: absolute;
-  top: 12px; right: 14px;
-  background: none;
-  border: none;
+  position: fixed;
+  top: 28px;
+  right: 32px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(201,168,76,0.3);
   color: #C9A84C;
-  font-size: 22px;
+  font-size: 28px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  z-index: 10001;
   line-height: 1;
 }
-#ctrlModalClose:hover { color: #fff; }
-#ctrlModalTitle { color: #C9A84C; font-size: 12px; letter-spacing: 3px; margin-bottom: 16px; font-family: Arial; font-weight: 700; }
-#ctrlQRCanvas { border-radius: 10px; background: #fff; display: block; margin: 0 auto; }
-#ctrlModalSub { color: #888; font-size: 11px; margin-top: 12px; line-height: 1.6; font-family: Arial; }
-#ctrlSessionId { color: #444; font-size: 9px; margin-top: 6px; word-break: break-all; font-family: Arial; }
-#ctrlRemoteStatus { color: #81c784; font-size: 11px; margin-top: 8px; font-family: Arial; display: none; }
+#ctrlModalClose:hover { background: rgba(201,168,76,0.15); border-color: #C9A84C; color: #fff; transform: scale(1.1); }
+#ctrlModalTitle {
+  color: #C9A84C;
+  font-size: 11px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+#ctrlModalHeading {
+  color: #fff;
+  font-size: 32px;
+  font-weight: 900;
+  margin-bottom: 32px;
+  letter-spacing: 2px;
+}
+#ctrlQRWrap {
+  background: #fff;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 0 60px rgba(201,168,76,0.25), 0 0 120px rgba(201,168,76,0.1);
+  margin-bottom: 28px;
+}
+#ctrlQRCanvas { display: block; border-radius: 8px; }
+#ctrlModalSub {
+  color: #888;
+  font-size: 15px;
+  text-align: center;
+  line-height: 1.8;
+}
+#ctrlSessionId {
+  color: #333;
+  font-size: 10px;
+  margin-top: 10px;
+  text-align: center;
+}
+#ctrlRemoteStatus {
+  color: #81c784;
+  font-size: 14px;
+  margin-top: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  display: none;
+}
 
 /* QR CONTROL REMOTO */
 #qrControlPanel {
@@ -305,16 +350,17 @@ iVBORw0KGgoAAAANSUhEUgAABDgAAAQ4CAYAAADsEGyPAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAAB
 <!-- BOTÓN FLOTANTE CONTROL -->
 <div id="ctrlFloatBtn" title="Control remoto">📱</div>
 
-<!-- MODAL QR -->
+<!-- MODAL QR PANTALLA COMPLETA -->
 <div id="ctrlModal">
-  <div id="ctrlModalBox">
-    <button id="ctrlModalClose" onclick="closeCtrlModal()">✕</button>
-    <div id="ctrlModalTitle">📱 CONTROL REMOTO</div>
-    <canvas id="ctrlQRCanvas" width="220" height="220"></canvas>
-    <p id="ctrlModalSub">Escanea con tu celular<br>para controlar el teleprompter</p>
-    <p id="ctrlSessionId"></p>
-    <div id="ctrlRemoteStatus">✓ Celular conectado</div>
+  <button id="ctrlModalClose" onclick="closeCtrlModal()">✕</button>
+  <div id="ctrlModalTitle">SISTEMA INTEGRAL DE TRANSPORTE DE TIJUANA</div>
+  <div id="ctrlModalHeading">CONTROL REMOTO</div>
+  <div id="ctrlQRWrap">
+    <canvas id="ctrlQRCanvas" width="280" height="280"></canvas>
   </div>
+  <p id="ctrlModalSub">Escanea con tu celular para controlar el teleprompter</p>
+  <p id="ctrlSessionId"></p>
+  <div id="ctrlRemoteStatus">✅ CELULAR CONECTADO</div>
 </div>
 
 <!-- SCROLLER -->
