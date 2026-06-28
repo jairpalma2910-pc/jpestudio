@@ -49,23 +49,30 @@ export default function Editor() {
     }
   }
 
-  // Pedir HTML al iframe antes de guardar
+  // Pedir HTML al iframe via postMessage
   const requestHTMLFromIframe = () => {
     return new Promise((resolve) => {
       const iframe = iframeRef.current
       if (!iframe) { resolve(htmlContent); return }
 
-      // Intentar leer directamente (funciona si es mismo origen)
-      try {
-        const doc = iframe.contentDocument
-        if (doc) {
-          resolve('<!DOCTYPE html>' + doc.documentElement.outerHTML)
-          return
+      // Escuchar respuesta del iframe
+      const handler = (e) => {
+        if (e.data?.type === 'save_html' && e.data?.html) {
+          window.removeEventListener('message', handler)
+          clearTimeout(timeout)
+          resolve(e.data.html)
         }
-      } catch(e) {}
+      }
+      window.addEventListener('message', handler)
 
-      // Si no se puede, usar el HTML que tenemos guardado
-      resolve(htmlContent)
+      // Timeout fallback - usar HTML en memoria
+      const timeout = setTimeout(() => {
+        window.removeEventListener('message', handler)
+        resolve(htmlContent)
+      }, 3000)
+
+      // Pedir el HTML al iframe
+      iframe.contentWindow.postMessage('get_html', '*')
     })
   }
 
