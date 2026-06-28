@@ -127,26 +127,27 @@ export default function Editor() {
     setSaving(true)
     try {
       // Pedir el guión actual al iframe
-      const txt = await new Promise((resolve) => {
+      const result = await new Promise((resolve) => {
         const h = (e) => {
           if (e.data?.type === 'guion_data') {
             window.removeEventListener('message', h)
             clearTimeout(t)
-            resolve(e.data.text || '')
+            resolve({ text: e.data.text || '', opciones: e.data.opciones || null })
           }
         }
         window.addEventListener('message', h)
         const t = setTimeout(() => {
           window.removeEventListener('message', h)
-          resolve(guionRef.current)
+          resolve({ text: guionRef.current, opciones: opcionesRef.current })
         }, 3000)
         iframeRef.current?.contentWindow?.postMessage('get_guion', '*')
       })
 
+      const payload = JSON.stringify({ guion: result.text, opciones: result.opciones || opcionesRef.current })
       const { data } = await api.post('/api/projects', {
         nombre,
         tipo,
-        html_content: txt
+        html_content: payload
       })
       navigate(`/editor/${tipo}/${data.id}`, { replace: true })
     } catch (e) {
