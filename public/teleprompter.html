@@ -1454,7 +1454,19 @@ function applyEdit(){
   sc.innerHTML=html;
   pos=0; sc.style.transform='translateY(0)';
   lastBloque=null;
-  closeEdit();
+  // Notificar al editor (padre) que hubo cambios - auto-guardar
+  try {
+    var fullHtml = '<!DOCTYPE html>' + document.documentElement.outerHTML;
+    window.parent.postMessage({ type: 'save_html', html: fullHtml }, '*');
+  } catch(e) {}
+  // Mostrar feedback sin cerrar
+  var btn = document.querySelector('#editTopBar .etb-btn[onclick="applyEdit()"]');
+  if (btn) {
+    var orig = btn.textContent;
+    btn.textContent = '✓ APLICADO';
+    btn.style.background = '#1a7a3a';
+    setTimeout(function(){ btn.textContent = orig; btn.style.background = '#C9A84C'; btn.style.color = '#000'; }, 2000);
+  }
 }
 function loadTxt(i){
   var f=i.files[0]; if(!f) return;
