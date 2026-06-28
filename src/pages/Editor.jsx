@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../api'
 import './Editor.css'
@@ -14,55 +14,45 @@ export default function Editor() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [showSaveModal, setShowSaveModal] = useState(false)
-  const [iframeReady, setIframeReady] = useState(false)
 
-  // Refs para evitar stale closures
-  const guionRef = useRef('')       // texto plano del guión
+  const guionRef = useRef('')
   const idRef = useRef(id)
   const nombreRef = useRef(nombre)
-  const iframeReadyRef = useRef(false)
-  const pendingGuionRef = useRef(null) // guión pendiente de enviar al iframe
 
   useEffect(() => { idRef.current = id }, [id])
   useEffect(() => { nombreRef.current = nombre }, [nombre])
 
-  // Escuchar mensajes del iframe
+  // Escuchar save_guion del iframe (cuando usuario da APLICAR)
   useEffect(() => {
     const handler = async (e) => {
-      // APLICAR: el teleprompter envía el guión actualizado
-      if (e.data?.type === 'save_guion') {
-        const txt = e.data.text || ''
-        guionRef.current = txt
-        const currentId = idRef.current
-        if (!currentId) return
-        try {
-          await api.put(`/api/projects/${currentId}`, {
-            nombre: nombreRef.current,
-            html_content: txt
-          })
-          setSaved(true)
-          setTimeout(() => setSaved(false), 2000)
-        } catch (err) {
-          console.error('Auto-save error:', err)
-        }
-      }
-      // Respuesta a get_guion (para guardar nuevo proyecto)
-      if (e.data?.type === 'guion_data') {
-        guionRef.current = e.data.text || ''
+      if (e.data?.type !== 'save_guion') return
+      const txt = e.data.text || ''
+      guionRef.current = txt
+      const currentId = idRef.current
+      if (!currentId) return // nuevo proyecto, no auto-guardar
+      try {
+        await api.put(`/api/projects/${currentId}`, {
+          nombre: nombreRef.current,
+          html_content: txt
+        })
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2000)
+      } catch (err) {
+        console.error('Error auto-save:', err)
       }
     }
     window.addEventListener('message', handler)
     return () => window.removeEventListener('message', handler)
   }, [])
 
-  // Cargar datos del proyecto
+  // Al montar: cargar proyecto o inicializar nuevo
   useEffect(() => {
     if (!id) {
       setNombre(tipo === 'portada' ? 'Nueva Portada' : 'Nuevo Teleprompter')
       guionRef.current = ''
-      return
+    } else {
+      loadProject()
     }
-    loadProject()
   }, [id, tipo])
 
   const loadProject = async () => {
@@ -70,97 +60,77 @@ export default function Editor() {
       const { data } = await api.get(`/api/projects/${id}`)
       setNombre(data.nombre)
       const content = data.html_content || ''
-      // Detectar si es HTML legacy (versión anterior guardaba HTML completo)
-      const isLegacyHTML = content.trim().startsWith('<!DOCTYPE') || content.trim().startsWith('<html')
-      if (isLegacyHTML) {
-        // Extraer guión del HTML legacy
+
+      // Detectar HTML legacy vs texto plano
+      const isHTML = content.trim().startsWith('<!DOCTYPE') || content.trim().startsWith('<html')
+      let guion = content
+      if (isHTML) {
+        // Extraer guión de HTML antiguo
         const m = content.match(/window\.__GUION__\s*=\s*`([\s\S]*?)`;/)
-        guionRef.current = m ? m[1].replace(/\\`/g, '`').replace(/\\\\/g, '\\') : ''
-        if (!guionRef.current) {
-          // Último fallback: extraer del DOM del HTML guardado
-          const scMatch = content.match(/<div id="sc">([\s\S]*?)<\/div>\s*(?:<!--|<button)/)
-          if (scMatch) {
-            // convertir los .bloque a texto plano
-            const bloques = scMatch[1].matchAll(/<div class="quien"[^>]*>(.*?)<\/div>[\s\S]*?<div class="texto"[^>]*>([\s\S]*?)<\/div>/g)
-            let txt = ''
-            for (const b of bloques) {
-              txt += '[' + b[1].trim() + ']\n' + b[2].trim() + '\n\n'
-            }
-            guionRef.current = txt
+        guion = m ? m[1].replace(/\\`/g, '`').replace(/\\\\/g, '\\') : ''
+        if (!guion) {
+          // Fallback: convertir bloques del DOM a texto
+          let txt = ''
+          const bloques = content.matchAll(/<div class="bloque">[\s\S]*?<div class="quien"[^>]*>([\s\S]*?)<\/div>[\s\S]*?<div class="texto"[^>]*>([\s\S]*?)<\/div>/g)
+          for (const b of bloques) {
+            txt += '[' + b[1].replace(/<[^>]+>/g,'').trim() + ']\n'
+            txt += b[2].replace(/<[^>]+>/g,'').trim() + '\n\n'
           }
+          guion = txt
         }
-      } else {
-        guionRef.current = content
       }
-      // Si el iframe ya está listo, enviar el guión ahora
-      if (iframeReadyRef.current) {
-        sendGuionToIframe()
-      } else {
-        // Guardar pendiente para enviar cuando el iframe esté listo
-        pendingGuionRef.current = guionRef.current
-      }
+      guionRef.current = guion
+
+      // Enviar al iframe — intentar inmediatamente y reintentar cada 200ms
+      // hasta que el iframe esté listo (máx 3s)
+      enviarGuion(guion)
     } catch (e) {
       alert('Error al cargar proyecto')
       navigate('/projects')
     }
   }
 
-  const sendGuionToIframe = () => {
-    const txt = guionRef.current
-    if (!txt || !iframeRef.current) return
-    try {
-      iframeRef.current.contentWindow.postMessage({ type: 'load_guion', text: txt }, '*')
-    } catch(e) {}
-  }
-
-  // El iframe terminó de cargar
-  const handleIframeLoad = () => {
-    iframeReadyRef.current = true
-    setIframeReady(true)
-    // Si hay guión pendiente (proyecto existente cargó antes que el iframe)
-    if (pendingGuionRef.current) {
-      setTimeout(() => {
-        try {
-          iframeRef.current?.contentWindow?.postMessage(
-            { type: 'load_guion', text: pendingGuionRef.current }, '*'
-          )
-        } catch(e) {}
-        pendingGuionRef.current = null
-      }, 100) // pequeño delay para que el JS del iframe esté listo
+  // Enviar guión al iframe con reintentos
+  const enviarGuion = (txt) => {
+    let intentos = 0
+    const maxIntentos = 15  // 15 × 200ms = 3 segundos
+    const enviar = () => {
+      intentos++
+      const iframe = iframeRef.current
+      if (!iframe) {
+        if (intentos < maxIntentos) setTimeout(enviar, 200)
+        return
+      }
+      try {
+        iframe.contentWindow.postMessage({ type: 'load_guion', text: txt }, '*')
+      } catch(e) {
+        if (intentos < maxIntentos) setTimeout(enviar, 200)
+      }
     }
-    // Si ya teníamos el guión cargado (iframe cargó después)
-    if (id && guionRef.current && !pendingGuionRef.current) {
-      setTimeout(() => sendGuionToIframe(), 100)
-    }
+    setTimeout(enviar, 300) // primer intento después de 300ms
   }
 
   // Guardar nuevo proyecto
   const handleSaveNew = async () => {
     setSaving(true)
     try {
+      // Pedir el guión actual al iframe
       const txt = await new Promise((resolve) => {
-        const localHandler = (e) => {
+        const h = (e) => {
           if (e.data?.type === 'guion_data') {
-            window.removeEventListener('message', localHandler)
-            clearTimeout(timeout)
+            window.removeEventListener('message', h)
+            clearTimeout(t)
             resolve(e.data.text || '')
           }
         }
-        window.addEventListener('message', localHandler)
-        const timeout = setTimeout(() => {
-          window.removeEventListener('message', localHandler)
+        window.addEventListener('message', h)
+        const t = setTimeout(() => {
+          window.removeEventListener('message', h)
           resolve(guionRef.current)
         }, 3000)
-        try {
-          iframeRef.current?.contentWindow?.postMessage('get_guion', '*')
-        } catch(e) {
-          clearTimeout(timeout)
-          window.removeEventListener('message', localHandler)
-          resolve(guionRef.current)
-        }
+        iframeRef.current?.contentWindow?.postMessage('get_guion', '*')
       })
 
-      guionRef.current = txt
       const { data } = await api.post('/api/projects', {
         nombre,
         tipo,
@@ -203,7 +173,6 @@ export default function Editor() {
           title={`Editor ${tipo}`}
           className="editor-iframe"
           sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
-          onLoad={handleIframeLoad}
         />
       </div>
 
