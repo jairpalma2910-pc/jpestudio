@@ -16,6 +16,7 @@ export default function Editor() {
   const [showSaveModal, setShowSaveModal] = useState(false)
 
   const guionRef = useRef('')
+  const portadaBlobRef = useRef(null)
   const opcionesRef = useRef(null)
   const idRef = useRef(id)
   const nombreRef = useRef(nombre)
@@ -26,6 +27,23 @@ export default function Editor() {
   // Escuchar save_guion del iframe (cuando usuario da APLICAR)
   useEffect(() => {
     const handler = async (e) => {
+      // Portada guarda HTML completo
+      if (e.data?.type === 'save_html') {
+        const html = e.data.html || ''
+        const currentId = idRef.current
+        if (!currentId) return
+        try {
+          await api.put(`/api/projects/${currentId}`, {
+            nombre: nombreRef.current,
+            html_content: html
+          })
+          setSaved(true)
+          setTimeout(() => setSaved(false), 2000)
+        } catch (err) {
+          console.error('[REACT] Error save_html:', err)
+        }
+        return
+      }
       if (e.data?.type !== 'save_guion') return
       const txt = e.data.text || ''
       const opciones = e.data.opciones || null
@@ -97,9 +115,17 @@ export default function Editor() {
       guionRef.current = guion
       if (opciones) opcionesRef.current = opciones
 
-      // Enviar al iframe — intentar inmediatamente y reintentar cada 200ms
-      // hasta que el iframe esté listo (máx 3s)
-      enviarGuion(guion)
+      if (tipo === 'portada' && isHTML) {
+        // Portada: cargar HTML completo como blob en el iframe
+        const blob = new Blob([content], { type: 'text/html' })
+        const url = URL.createObjectURL(blob)
+        iframeRef.current ? (iframeRef.current.src = url) : null
+        // Guardar la URL para cuando el iframe monte
+        portadaBlobRef.current = url
+      } else {
+        // Teleprompter: enviar guión via postMessage
+        enviarGuion(guion)
+      }
     } catch (e) {
       alert('Error al cargar proyecto')
       navigate('/projects')
@@ -131,27 +157,37 @@ export default function Editor() {
     setSaving(true)
     try {
       // Pedir el guión actual al iframe
-      const result = await new Promise((resolve) => {
+      // Portada usa get_html, teleprompter usa get_guion
+      const content = await new Promise((resolve) => {
         const h = (e) => {
-          if (e.data?.type === 'guion_data') {
+          if (e.data?.type === 'save_html' && tipo === 'portada') {
             window.removeEventListener('message', h)
             clearTimeout(t)
-            resolve({ text: e.data.text || '', opciones: e.data.opciones || null })
+            resolve(e.data.html || '')
+          }
+          if (e.data?.type === 'guion_data' && tipo === 'teleprompter') {
+            window.removeEventListener('message', h)
+            clearTimeout(t)
+            const result = { text: e.data.text || '', opciones: e.data.opciones || null }
+            resolve(JSON.stringify({ guion: result.text, opciones: result.opciones || opcionesRef.current }))
           }
         }
         window.addEventListener('message', h)
         const t = setTimeout(() => {
           window.removeEventListener('message', h)
-          resolve({ text: guionRef.current, opciones: opcionesRef.current })
+          resolve(tipo === 'portada' ? '' : JSON.stringify({ guion: guionRef.current, opciones: opcionesRef.current }))
         }, 3000)
-        iframeRef.current?.contentWindow?.postMessage('get_guion', '*')
+        if (tipo === 'portada') {
+          iframeRef.current?.contentWindow?.postMessage('get_html', '*')
+        } else {
+          iframeRef.current?.contentWindow?.postMessage('get_guion', '*')
+        }
       })
 
-      const payload = JSON.stringify({ guion: result.text, opciones: result.opciones || opcionesRef.current })
       const { data } = await api.post('/api/projects', {
         nombre,
         tipo,
-        html_content: payload
+        html_content: content
       })
       navigate(`/editor/${tipo}/${data.id}`, { replace: true })
     } catch (e) {
