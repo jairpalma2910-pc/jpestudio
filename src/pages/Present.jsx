@@ -25,7 +25,31 @@ export default function Present() {
     try {
       const { data } = await api.get(`/api/projects/${id}`)
       setNombre(data.nombre)
-      const blob = new Blob([data.html_content], { type: 'text/html' })
+      // Inyectar script que oculta panel ANTES de que cargue la página
+      const hideScript = `<script>
+        // Ocultar panel inmediatamente
+        document.addEventListener('DOMContentLoaded', function(){
+          var ids = ['editPanel','toggleBarBtn','epBtn','panel','opBtn','bar','showBar','edBtn'];
+          ids.forEach(function(id){
+            var el = document.getElementById(id);
+            if(el) el.style.display = 'none';
+          });
+        });
+        // También al cargar
+        window.addEventListener('load', function(){
+          var ids = ['editPanel','toggleBarBtn','epBtn','panel','opBtn','bar','showBar','edBtn'];
+          ids.forEach(function(id){
+            var el = document.getElementById(id);
+            if(el) el.style.display = 'none';
+          });
+        });
+      <\/script>`;
+      
+      let content = data.html_content;
+      // Insertar script ocultar al inicio del head
+      content = content.replace('<head>', '<head>' + hideScript);
+      
+      const blob = new Blob([content], { type: 'text/html' })
       setHtmlSrc(URL.createObjectURL(blob))
     } catch (e) {
       setError('No se pudo cargar el proyecto')
