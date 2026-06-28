@@ -3,6 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom'
 import api from '../api'
 import './Present.css'
 
+const TELEPROMPTER_URL = '/jpestudio/teleprompter.html'
+const PORTADA_URL = '/jpestudio/portada.html'
+
 export default function Present() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -11,10 +14,11 @@ export default function Present() {
   const [error, setError] = useState('')
   const [nombre, setNombre] = useState('')
   const [fullscreen, setFullscreen] = useState(false)
-  const [htmlSrc, setHtmlSrc] = useState('')
+  const [iframeSrc, setIframeSrc] = useState('')
+  const guionRef = useRef('')
+  const tipoRef = useRef('')
 
   useEffect(() => { load() }, [id])
-
   useEffect(() => {
     const handler = () => setFullscreen(!!document.fullscreenElement)
     document.addEventListener('fullscreenchange', handler)
@@ -25,32 +29,24 @@ export default function Present() {
     try {
       const { data } = await api.get(`/api/projects/${id}`)
       setNombre(data.nombre)
-      // Inyectar script que oculta panel ANTES de que cargue la página
-      const hideScript = `<script>
-        // Ocultar panel inmediatamente
-        document.addEventListener('DOMContentLoaded', function(){
-          var ids = ['editPanel','toggleBarBtn','epBtn','panel','opBtn','bar','showBar','edBtn'];
-          ids.forEach(function(id){
-            var el = document.getElementById(id);
-            if(el) el.style.display = 'none';
-          });
-        });
-        // También al cargar
-        window.addEventListener('load', function(){
-          var ids = ['editPanel','toggleBarBtn','epBtn','panel','opBtn','bar','showBar','edBtn'];
-          ids.forEach(function(id){
-            var el = document.getElementById(id);
-            if(el) el.style.display = 'none';
-          });
-        });
-      <\/script>`;
-      
-      let content = data.html_content;
-      // Insertar script ocultar al inicio del head
-      content = content.replace('<head>', '<head>' + hideScript);
-      
-      const blob = new Blob([content], { type: 'text/html' })
-      setHtmlSrc(URL.createObjectURL(blob))
+      tipoRef.current = data.tipo
+      const content = data.html_content || ''
+      const isLegacyHTML = content.trim().startsWith('<!DOCTYPE') || content.trim().startsWith('<html')
+
+      if (data.tipo === 'teleprompter') {
+        if (isLegacyHTML) {
+          // Extraer guión del HTML legacy
+          const guionMatch = content.match(/window\.__GUION__\s*=\s*`([\s\S]*?)`;/)
+          guionRef.current = guionMatch ? guionMatch[1].replace(/\\`/g,'`').replace(/\\\\/g,'\\') : ''
+        } else {
+          guionRef.current = content
+        }
+        setIframeSrc(TELEPROMPTER_URL)
+      } else {
+        // Portada: sigue usando HTML completo
+        const blob = new Blob([content], { type: 'text/html' })
+        setIframeSrc(URL.createObjectURL(blob))
+      }
     } catch (e) {
       setError('No se pudo cargar el proyecto')
     } finally {
@@ -58,20 +54,28 @@ export default function Present() {
     }
   }
 
-  // Auto fullscreen y ocultar controles cuando carga el iframe
   const handleIframeLoad = () => {
     const iframe = iframeRef.current
     if (!iframe) return
-    // Enviar mensaje para ocultar panel de opciones
     try {
-      iframe.contentWindow.postMessage('present_mode', '*')
+      if (tipoRef.current === 'teleprompter') {
+        // Enviar guión y activar modo presentación
+        if (guionRef.current) {
+          iframe.contentWindow.postMessage({ type: 'load_guion', text: guionRef.current }, '*')
+        }
+        setTimeout(() => {
+          iframe.contentWindow.postMessage('present_mode', '*')
+        }, 300)
+      } else {
+        iframe.contentWindow.postMessage('present_mode', '*')
+      }
     } catch(e) {}
-    // Pantalla completa automático
+    // Auto fullscreen
     setTimeout(() => {
       if (iframe?.requestFullscreen) {
         iframe.requestFullscreen().catch(() => {})
       }
-    }, 300)
+    }, 500)
   }
 
   const toggleFullscreen = () => {
@@ -102,7 +106,6 @@ export default function Present() {
 
   return (
     <div className="present-page">
-      {/* Barra flotante - solo visible al mover mouse */}
       <div className={`present-bar ${fullscreen ? 'present-bar-hidden' : ''}`}
            onMouseLeave={e => e.currentTarget.classList.add('present-bar-hidden')}
            onMouseEnter={e => e.currentTarget.classList.remove('present-bar-hidden')}>
@@ -120,7 +123,7 @@ export default function Present() {
       <div className="present-frame">
         <iframe
           ref={iframeRef}
-          src={htmlSrc}
+          src={iframeSrc}
           title={nombre}
           className="present-iframe"
           sandbox="allow-scripts allow-same-origin allow-forms"
