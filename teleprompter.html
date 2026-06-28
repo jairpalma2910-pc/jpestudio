@@ -730,28 +730,7 @@ function getPersonaColor(nombre){
 // ══════════════════════════════════════════
 function openEdit(){
   var ta=document.getElementById('editTA');
-  var txt='';
-  // Leer del script de datos persistentes
-  var gd=document.getElementById('guion-data');
-  if(gd && gd.textContent.trim()){
-    txt=gd.textContent;
-  } else {
-    // Fallback: leer del DOM
-    sc.childNodes.forEach(function(node){
-      if(node.nodeType!==1) return;
-      if(node.classList && node.classList.contains('bloque')){
-        var q=node.querySelector('.quien');
-        var t=node.querySelector('.texto');
-        if(q) txt+='['+q.textContent.trim()+']\n';
-        if(t) txt+=t.innerText.trim()+'\n';
-        txt+='\n';
-      } else if(node.tagName==='HR'){
-        txt+='---\n';
-      }
-    });
-    // Guardar en el script para futuras aperturas
-    if(gd) gd.textContent=txt;
-  }
+  var txt=window.__GUION__||'';
   ta.value=txt;
   document.getElementById('editMode').classList.add('open');
   playing=false;
@@ -823,8 +802,14 @@ function applyEdit(){
   lastBloque=null;
 
   // Guardar guión en el script persistente
-  var gdEl=document.getElementById('guion-data');
-  if(gdEl) gdEl.textContent=document.getElementById('editTA').value;
+  // Guardar guión en variable global y serializar en script embebido
+  var guionTexto=document.getElementById('editTA').value;
+  window.__GUION__=guionTexto;
+  var initScript=document.getElementById('guion-init-script');
+  if(initScript){
+    var escaped=guionTexto.replace(/\\/g,'\\\\').replace(/`/g,'\\`');
+    initScript.textContent='window.__GUION__=`'+escaped+'`;';
+  }
   // Notificar al padre (Editor.jsx) para auto-guardar
   try{
     var fullHtml='<!DOCTYPE html>'+document.documentElement.outerHTML;
@@ -1122,16 +1107,22 @@ function cancelModal(id){
 </script>
 
 <!-- Datos del guión persistentes -->
-<script id="guion-data" type="text/plain"></script>
+<!-- Script de guión embebido — se actualiza antes de guardar -->
+<script id="guion-init-script">/* guion se inicializa en el script principal */</script>
 
 <!-- Listener comunicación con editor React -->
 <script>
-// Al cargar: inicializar guion-data leyendo del DOM si está vacío
+// ══════════════════════════════════════════
+// GESTIÓN DEL GUIÓN — PERSISTENCIA
+// ══════════════════════════════════════════
+// El guión se guarda en window.__GUION__
+// Al guardar con outerHTML, este script se incluye con el valor actualizado
+
+// Inicializar leyendo del DOM si no hay guión en memoria
 (function(){
-  var gd=document.getElementById('guion-data');
+  if(window.__GUION__ && window.__GUION__.trim()) return;
   var sc2=document.getElementById('sc');
-  if(!gd || !sc2) return;
-  if(gd.textContent.trim()) return; // ya tiene datos
+  if(!sc2) return;
   var txt='';
   sc2.childNodes.forEach(function(node){
     if(node.nodeType!==1) return;
@@ -1145,19 +1136,24 @@ function cancelModal(id){
       txt+='---\n';
     }
   });
-  if(txt.trim()) gd.textContent=txt;
+  window.__GUION__=txt;
 })();
 
 window.addEventListener('message',function(e){
   if(e.data==='get_html'){
     try{
-      // Asegurar que guion-data esté actualizado antes de guardar
+      // Actualizar __GUION__ desde el textarea si está abierto
       var taEl=document.getElementById('editTA');
-      var gdEl2=document.getElementById('guion-data');
-      if(taEl && taEl.value && gdEl2) gdEl2.textContent=taEl.value;
+      if(taEl && taEl.value.trim()) window.__GUION__=taEl.value;
+      // Serializar __GUION__ en el script embebido antes de capturar
+      var initScript=document.getElementById('guion-init-script');
+      if(initScript){
+        var escaped=window.__GUION__.replace(/\\/g,'\\\\').replace(/`/g,'\\`');
+        initScript.textContent='window.__GUION__=`'+escaped+'`;';
+      }
       var h='<!DOCTYPE html>'+document.documentElement.outerHTML;
       e.source.postMessage({type:'save_html',html:h},'*');
-    }catch(err){}
+    }catch(err){ console.error('get_html error',err); }
   }
   if(e.data==='present_mode'){
     ['bar','showBar','editMode'].forEach(function(id){
@@ -1165,8 +1161,7 @@ window.addEventListener('message',function(e){
       if(el) el.style.display='none';
     });
   }
-});
-</script>
+});</script>
 
 </body>
 </html>
