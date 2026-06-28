@@ -167,49 +167,66 @@ html,body{width:100%;height:100%;overflow:hidden;background:#6B1020;font-family:
   padding:12px;text-align:center;display:none;}
 #qrPanel p{color:#C9A84C;font-size:10px;font-family:Arial;margin-top:6px;letter-spacing:1px;}
 
-/* BOTÓN FLOTANTE CONTROL - visible en presentación */
+/* BOTÓN FLOTANTE CONTROL */
 #ctrlFloatBtn {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  bottom: 24px;
+  right: 24px;
   z-index: 9999;
-  width: 36px;
-  height: 36px;
-  background: rgba(0,0,0,0.6);
-  border: 1px solid rgba(201,168,76,0.4);
+  width: 38px;
+  height: 38px;
+  background: rgba(10,0,5,0.75);
+  border: 1px solid rgba(201,168,76,0.5);
   border-radius: 50%;
   cursor: grab;
   display: none;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  transition: all 0.2s;
+  font-size: 18px;
   user-select: none;
+  backdrop-filter: blur(4px);
+  transition: border-color 0.2s, background 0.2s;
 }
-#ctrlFloatBtn:hover {
-  background: rgba(201,168,76,0.2);
-  border-color: #C9A84C;
-  width: 40px;
-  height: 40px;
-}
+#ctrlFloatBtn:hover { background: rgba(201,168,76,0.15); border-color: #C9A84C; }
+#ctrlFloatBtn:active { cursor: grabbing; }
 
-/* Panel QR que sale al darle click */
-#ctrlQRBox {
+/* MODAL QR */
+#ctrlModal {
   position: fixed;
-  bottom: 70px;
-  right: 20px;
-  z-index: 9999;
-  background: rgba(0,0,0,0.95);
-  border: 2px solid #C9A84C;
-  border-radius: 14px;
-  padding: 16px;
-  text-align: center;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(6px);
   display: none;
-  min-width: 200px;
+  align-items: center;
+  justify-content: center;
 }
-#ctrlQRBox h4 { color: #C9A84C; font-size: 11px; letter-spacing: 2px; margin-bottom: 10px; font-family: Arial; }
-#ctrlQRBox p { color: #aaa; font-size: 10px; margin-top: 8px; line-height: 1.5; font-family: Arial; }
-#ctrlQRCanvas { border-radius: 8px; background: #fff; }
+#ctrlModalBox {
+  background: #0a0005;
+  border: 2px solid #C9A84C;
+  border-radius: 20px;
+  padding: 32px 28px 24px;
+  text-align: center;
+  position: relative;
+  min-width: 280px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+}
+#ctrlModalClose {
+  position: absolute;
+  top: 12px; right: 14px;
+  background: none;
+  border: none;
+  color: #C9A84C;
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+}
+#ctrlModalClose:hover { color: #fff; }
+#ctrlModalTitle { color: #C9A84C; font-size: 12px; letter-spacing: 3px; margin-bottom: 16px; font-family: Arial; font-weight: 700; }
+#ctrlQRCanvas { border-radius: 10px; background: #fff; display: block; margin: 0 auto; }
+#ctrlModalSub { color: #888; font-size: 11px; margin-top: 12px; line-height: 1.6; font-family: Arial; }
+#ctrlSessionId { color: #444; font-size: 9px; margin-top: 6px; word-break: break-all; font-family: Arial; }
+#ctrlRemoteStatus { color: #81c784; font-size: 11px; margin-top: 8px; font-family: Arial; display: none; }
 
 /* QR CONTROL REMOTO */
 #qrControlPanel {
@@ -285,13 +302,19 @@ iVBORw0KGgoAAAANSUhEUgAABDgAAAQ4CAYAAADsEGyPAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAAB
   <div id="remoteStatus">✓ Cel conectado</div>
 </div>
 
-<!-- BOTÓN FLOTANTE CONTROL (solo visible en presentación) -->
+<!-- BOTÓN FLOTANTE CONTROL -->
 <div id="ctrlFloatBtn" title="Control remoto">📱</div>
-<div id="ctrlQRBox">
-  <h4>📱 CONTROL REMOTO</h4>
-  <canvas id="ctrlQRCanvas" width="160" height="160"></canvas>
-  <p>Escanea con tu cel<br>para controlar</p>
-  <p id="ctrlSessionId" style="color:#555;font-size:9px;margin-top:4px;"></p>
+
+<!-- MODAL QR -->
+<div id="ctrlModal">
+  <div id="ctrlModalBox">
+    <button id="ctrlModalClose" onclick="closeCtrlModal()">✕</button>
+    <div id="ctrlModalTitle">📱 CONTROL REMOTO</div>
+    <canvas id="ctrlQRCanvas" width="220" height="220"></canvas>
+    <p id="ctrlModalSub">Escanea con tu celular<br>para controlar el teleprompter</p>
+    <p id="ctrlSessionId"></p>
+    <div id="ctrlRemoteStatus">✓ Celular conectado</div>
+  </div>
 </div>
 
 <!-- SCROLLER -->
@@ -1101,27 +1124,34 @@ function initCtrlFloat() {
     btn.style.bottom = 'auto';
     btn.style.left = (e.clientX - ctrlFOX) + 'px';
     btn.style.top = (e.clientY - ctrlFOY) + 'px';
-    // Mover QR box junto al botón
-    var qr = document.getElementById('ctrlQRBox');
-    qr.style.left = (e.clientX - ctrlFOX - 80) + 'px';
-    qr.style.top = (e.clientY - ctrlFOY - 230) + 'px';
-    qr.style.right = 'auto';
-    qr.style.bottom = 'auto';
   });
   document.addEventListener('mouseup', function() {
     ctrlFloatDrag = false;
     btn.style.cursor = 'grab';
   });
 
-  // Click para mostrar/ocultar QR
+  // Click abre modal
   btn.addEventListener('click', function(e) {
     if (ctrlFloatDrag) return;
-    ctrlQRVisible = !ctrlQRVisible;
-    var qr = document.getElementById('ctrlQRBox');
-    qr.style.display = ctrlQRVisible ? 'block' : 'none';
-    if (ctrlQRVisible) generateCtrlQR();
+    openCtrlModal();
   });
 }
+
+function openCtrlModal() {
+  var modal = document.getElementById('ctrlModal');
+  modal.style.display = 'flex';
+  generateCtrlQR();
+}
+
+function closeCtrlModal() {
+  document.getElementById('ctrlModal').style.display = 'none';
+}
+
+// Cerrar modal al hacer click fuera
+document.addEventListener('click', function(e) {
+  var modal = document.getElementById('ctrlModal');
+  if (modal && e.target === modal) closeCtrlModal();
+});
 
 function generateCtrlQR() {
   var remoteURL = 'https://jairpalma2910-pc.github.io/jpestudio/remote.html?s=' + ctrlSessionId;
@@ -1185,7 +1215,17 @@ function showQRFallback(url) {
 var wsCtrl = null;
 function connectCtrlWS() {
   wsCtrl = new WebSocket('wss://jpestudio-api.onrender.com/ws?session=' + ctrlSessionId + '&role=screen');
+  wsCtrl.onopen = function() {
+    var st = document.getElementById('ctrlRemoteStatus');
+  };
   wsCtrl.onmessage = function(e) {
+    try {
+      var msg = JSON.parse(e.data);
+      if (msg.type === 'remote_connected') {
+        var st = document.getElementById('ctrlRemoteStatus');
+        if (st) st.style.display = 'block';
+      }
+    } catch(ex) {}
     try {
       var msg = JSON.parse(e.data);
       if (msg.action === 'toggle') togglePlay();
