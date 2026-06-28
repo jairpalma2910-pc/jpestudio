@@ -16,6 +16,7 @@ export default function Present() {
   const [fullscreen, setFullscreen] = useState(false)
   const [iframeSrc, setIframeSrc] = useState('')
   const guionRef = useRef('')
+  const opcionesRef = useRef(null)
   const tipoRef = useRef('')
 
   useEffect(() => { load() }, [id])
@@ -34,8 +35,14 @@ export default function Present() {
       const isLegacyHTML = content.trim().startsWith('<!DOCTYPE') || content.trim().startsWith('<html')
 
       if (data.tipo === 'teleprompter') {
-        if (isLegacyHTML) {
-          // Extraer guión del HTML legacy
+        const isJSON = content.trim().startsWith('{')
+        if (isJSON) {
+          try {
+            const parsed = JSON.parse(content)
+            guionRef.current = parsed.guion || ''
+            opcionesRef.current = parsed.opciones || null
+          } catch(e) { guionRef.current = content }
+        } else if (isLegacyHTML) {
           const guionMatch = content.match(/window\.__GUION__\s*=\s*`([\s\S]*?)`;/)
           guionRef.current = guionMatch ? guionMatch[1].replace(/\\`/g,'`').replace(/\\\\/g,'\\') : ''
         } else {
@@ -61,7 +68,7 @@ export default function Present() {
       if (tipoRef.current === 'teleprompter') {
         // Enviar guión y activar modo presentación
         if (guionRef.current) {
-          iframe.contentWindow.postMessage({ type: 'load_guion', text: guionRef.current }, '*')
+          iframe.contentWindow.postMessage({ type: 'load_guion', text: guionRef.current, opciones: opcionesRef.current }, '*')
         }
         setTimeout(() => {
           iframe.contentWindow.postMessage('present_mode', '*')
