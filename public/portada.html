@@ -716,12 +716,73 @@ function togglePanel() {
 </script>
 
 <script>
+// ── GUARDAR ESTADO COMO JSON ──
+function getEstado() {
+  var g = function(id){ var el=document.getElementById(id); return el?el.value:''; };
+  var q = function(sel){ var el=document.querySelector(sel); return el?el.style:''; };
+  var qv = function(sel, prop){ var el=document.querySelector(sel); return el?(el.style[prop]||''):''; };
+  // Posiciones de draggables
+  var poss = {};
+  document.querySelectorAll('.draggable').forEach(function(el){
+    if(el.id) poss[el.id] = { left: el.style.left, top: el.style.top };
+  });
+  return {
+    txtSesion: g('txtSesion'),
+    txtTitulo: g('txtTitulo'),
+    txtSub: g('txtSub'),
+    szSesion: document.querySelector('#editPanel input[oninput*="session-number"][type=range]') ? document.querySelector('#editPanel input[oninput*="session-number"][type=range]').value : '28',
+    szTitulo: document.querySelector('#editPanel input[oninput*="session-title"][type=range]') ? document.querySelector('#editPanel input[oninput*="session-title"][type=range]').value : '50',
+    szSub: document.querySelector('#editPanel input[oninput*="session-sub"][type=range]') ? document.querySelector('#editPanel input[oninput*="session-sub"][type=range]').value : '16',
+    colSesion: qv('.session-number','color'),
+    colTitulo: qv('.session-title','color'),
+    colSub: qv('.session-sub','color'),
+    bg: document.body.style.background || document.querySelector('.bg') ? (document.querySelector('.bg')?document.querySelector('.bg').style.background:'') : '',
+    dragonOp: (function(){ var el=document.querySelector('.dragon'); return el?(el.style.opacity||'0.75'):'0.75'; })(),
+    logoSize: (function(){ var el=document.querySelector('.logo-wrapper img'); return el?(el.style.width||''):''; })(),
+    logoOp: (function(){ var el=document.querySelector('.logo-wrapper img'); return el?(el.style.opacity||'1'):'1'; })(),
+    positions: poss
+  };
+}
+
+function applyEstado(st) {
+  if (!st) return;
+  // Textos
+  if (st.txtSesion) { changeText('.session-number', st.txtSesion); var el=document.getElementById('txtSesion'); if(el) el.value=st.txtSesion; }
+  if (st.txtTitulo) { changeText('.session-title', st.txtTitulo); var el=document.getElementById('txtTitulo'); if(el) el.value=st.txtTitulo; }
+  if (st.txtSub)    { changeText('.session-sub', st.txtSub);     var el=document.getElementById('txtSub');    if(el) el.value=st.txtSub; }
+  // Tamaños
+  if (st.szSesion) changeFontSize('.session-number', st.szSesion, 'szSesion');
+  if (st.szTitulo) changeFontSize('.session-title', st.szTitulo, 'szTitulo');
+  if (st.szSub)    changeFontSize('.session-sub', st.szSub, 'szSub');
+  // Colores
+  if (st.colSesion) changeColor('.session-number', st.colSesion);
+  if (st.colTitulo) changeColor('.session-title', st.colTitulo);
+  if (st.colSub)    changeColor('.session-sub', st.colSub);
+  // Fondo
+  if (st.bg) changeBg(st.bg);
+  // Dragon
+  if (st.dragonOp) changeDragonOpacity(parseFloat(st.dragonOp)*100);
+  // Logo
+  if (st.logoSize) { var img=document.querySelector('.logo-wrapper img'); if(img) img.style.width=st.logoSize; }
+  if (st.logoOp)   { var img=document.querySelector('.logo-wrapper img'); if(img) img.style.opacity=st.logoOp; }
+  // Posiciones draggables
+  if (st.positions) {
+    Object.keys(st.positions).forEach(function(id){
+      var el = document.getElementById(id);
+      if (el) {
+        if (st.positions[id].left) el.style.left = st.positions[id].left;
+        if (st.positions[id].top)  el.style.top  = st.positions[id].top;
+      }
+    });
+  }
+}
+
 function guardarPortada(){
   try {
-    var h = '<!DOCTYPE html>' + document.documentElement.outerHTML;
+    var estado = getEstado();
     var destino = (window.parent !== window) ? window.parent : window.top;
     if (destino && destino !== window) {
-      destino.postMessage({ type: 'save_html', html: h }, '*');
+      destino.postMessage({ type: 'save_portada', estado: estado }, '*');
       var btn = document.getElementById('portadaSaveBtn');
       if(btn){
         btn.textContent = '✓ GUARDADO';
@@ -729,25 +790,21 @@ function guardarPortada(){
         setTimeout(function(){ btn.textContent = '💾 GUARDAR'; btn.style.background = '#C9A84C'; }, 2000);
       }
     }
-  } catch(e){}
+  } catch(e){ console.error('guardarPortada error', e); }
 }
 
 window.addEventListener('message', function(e) {
-  if (e.data === 'get_html') {
-    var h = '<!DOCTYPE html>' + document.documentElement.outerHTML;
-    e.source.postMessage({ type: 'save_html', html: h }, '*');
-  }
-  // Cargar HTML guardado de proyecto existente
-  if (e.data && e.data.type === 'load_html') {
+  // Pedir estado para guardar proyecto nuevo
+  if (e.data === 'get_portada') {
     try {
-      var parser = new DOMParser();
-      var doc = parser.parseFromString(e.data.html, 'text/html');
-      // Reemplazar el body con el guardado
-      document.body.innerHTML = doc.body.innerHTML;
-      // Re-inicializar draggables
-      if (typeof initDraggables === 'function') initDraggables();
-    } catch(err) { console.error('load_html error', err); }
+      e.source.postMessage({ type: 'portada_data', estado: getEstado() }, '*');
+    } catch(err){}
   }
+  // Cargar estado guardado
+  if (e.data && e.data.type === 'load_portada') {
+    applyEstado(e.data.estado);
+  }
+  // Modo presentación: ocultar controles
   if (e.data === 'present_mode') {
     var ids = ['editPanel','toggleBarBtn','epBtn','portadaSaveBtn'];
     ids.forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display='none'; });
