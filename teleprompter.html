@@ -594,16 +594,27 @@ function resumeNow(){
 }
 function setPauseTime(t){ defPauseTime=t; clearInterval(pauseCountdown); var cnt=t; document.getElementById('pcount').textContent=cnt; pauseCountdown=setInterval(function(){ cnt--; document.getElementById('pcount').textContent=cnt; if(cnt<=0){ clearInterval(pauseCountdown); resumeNow(); } },1000); }
 function getOpciones(){
-  // Capturar estado actual de opciones visuales
   var bloques = document.querySelectorAll('.texto');
   var quienes = document.querySelectorAll('.quien');
+  var ef = {
+    color: document.getElementById('efColor') ? document.getElementById('efColor').checked : false,
+    flash: document.getElementById('efFlash') ? document.getElementById('efFlash').checked : false,
+    caja:  document.getElementById('efCaja')  ? document.getElementById('efCaja').checked  : false,
+    lateral: document.getElementById('efLateral') ? document.getElementById('efLateral').checked : false,
+    pausa: document.getElementById('efPausa') ? document.getElementById('efPausa').checked : false
+  };
   return {
     bg: window.__BG__ || document.body.style.background || '',
     txtColor: bloques.length ? bloques[0].style.color : '',
     txtSize: bloques.length ? bloques[0].style.fontSize : '',
     quienSize: quienes.length ? quienes[0].style.fontSize : '',
     logoVisible: document.getElementById('lw') ? document.getElementById('lw').style.display !== 'none' : true,
-    logoSize: document.getElementById('li') ? document.getElementById('li').style.width : ''
+    logoSize: document.getElementById('li') ? document.getElementById('li').style.width : '',
+    colPres: document.getElementById('colPres') ? document.getElementById('colPres').value : '#C9A84C',
+    colSec:  document.getElementById('colSec')  ? document.getElementById('colSec').value  : '#64b5f6',
+    colAdm:  document.getElementById('colAdm')  ? document.getElementById('colAdm').value  : '#81c784',
+    colPunto:document.getElementById('colPunto')? document.getElementById('colPunto').value: '#ff8a65',
+    efectos: ef
   };
 }
 function guardarCambios(){
@@ -1145,12 +1156,33 @@ window.addEventListener('message', function(e) {
     // Restaurar opciones visuales si vienen guardadas
     if (data.opciones) {
       var op = data.opciones;
-      if (op.bg) { setBg(op.bg); }
+      if (op.bg) setBg(op.bg);
       if (op.txtColor) document.querySelectorAll('.texto').forEach(function(e){ e.style.color=op.txtColor; });
       if (op.txtSize) document.querySelectorAll('.texto').forEach(function(e){ e.style.fontSize=op.txtSize; });
       if (op.quienSize) document.querySelectorAll('.quien').forEach(function(e){ e.style.fontSize=op.quienSize; });
-      if (op.logoSize) { var li=document.getElementById('li'); if(li) li.style.width=op.logoSize; }
+      if (op.logoSize) { var li2=document.getElementById('li'); if(li2) li2.style.width=op.logoSize; }
       if (op.logoVisible === false) { var lw2=document.getElementById('lw'); if(lw2) lw2.style.display='none'; }
+      // Restaurar colores custom
+      if (op.colPres) { var cp=document.getElementById('colPres'); if(cp) cp.value=op.colPres; }
+      if (op.colSec)  { var cs=document.getElementById('colSec');  if(cs) cs.value=op.colSec;  }
+      if (op.colAdm)  { var ca=document.getElementById('colAdm');  if(ca) ca.value=op.colAdm;  }
+      if (op.colPunto){ var cpt=document.getElementById('colPunto');if(cpt) cpt.value=op.colPunto; }
+      // Restaurar y reaplicar efectos
+      if (op.efectos) {
+        var ef=op.efectos;
+        var efColor=document.getElementById('efColor');
+        var efFlash=document.getElementById('efFlash');
+        var efCaja=document.getElementById('efCaja');
+        var efLateral=document.getElementById('efLateral');
+        var efPausa=document.getElementById('efPausa');
+        if(efColor) efColor.checked=ef.color;
+        if(efFlash) efFlash.checked=ef.flash;
+        if(efCaja)  efCaja.checked=ef.caja;
+        if(efLateral) efLateral.checked=ef.lateral;
+        if(efPausa) efPausa.checked=ef.pausa;
+        // Reaplicar efectos automáticamente si alguno estaba activo
+        if(ef.color||ef.caja||ef.lateral||ef.pausa) applyEfectos();
+      }
     }
   }
 
