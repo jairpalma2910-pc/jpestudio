@@ -20,20 +20,29 @@ export default function Editor() {
   const estadoPortadaRef = useRef(null)
   const idRef = useRef(id)
   const nombreRef = useRef(nombre)
-  const iframeReadyRef = useRef(false) // REF no estado — evita stale closures
+  const iframeReadyRef = useRef(false)
+  const pendingMsgRef = useRef(null)
 
   useEffect(() => { idRef.current = id }, [id])
   useEffect(() => { nombreRef.current = nombre }, [nombre])
 
-  // Escuchar mensajes del iframe
   useEffect(() => {
     const handler = async (e) => {
+      // Portada lista — enviar estado guardado
+      if (e.data?.type === 'portada_ready') {
+        iframeReadyRef.current = true
+        if (pendingMsgRef.current) {
+          try { iframeRef.current?.contentWindow?.postMessage(pendingMsgRef.current, '*') } catch(err) {}
+          pendingMsgRef.current = null
+        }
+        return
+      }
+      // Portada guardó cambios
       if (e.data?.type === 'save_portada') {
         const estado = e.data.estado
         estadoPortadaRef.current = estado
         const currentId = idRef.current
-        console.log('[REACT] save_portada recibido. id:', currentId, 'nombre:', nombreRef.current)
-        if (!currentId) { console.warn('[REACT] Sin ID - no se guarda'); return }
+        if (!currentId) return
         try {
           await api.put(`/api/projects/${currentId}`, {
             nombre: nombreRef.current,
@@ -48,6 +57,7 @@ export default function Editor() {
         estadoPortadaRef.current = e.data.estado
         return
       }
+      // Teleprompter guardó guión (APLICAR)
       if (e.data?.type === 'save_guion') {
         const txt = e.data.text || ''
         const opciones = e.data.opciones || null
@@ -114,45 +124,46 @@ export default function Editor() {
 
       if (!msg) return
 
-      // Enviar al iframe — si ya está listo enviar ahora, sino reintentar
-      const enviar = (intentos) => {
-        if (!iframeRef.current) {
-          if (intentos < 20) setTimeout(() => enviar(intentos + 1), 200)
-          return
-        }
-        if (!iframeReadyRef.current) {
-          // Iframe montado pero JS no listo aún, esperar
-          if (intentos < 20) setTimeout(() => enviar(intentos + 1), 200)
-          return
-        }
-        try {
-          iframeRef.current.contentWindow.postMessage(msg, '*')
-        } catch(e) {
-          if (intentos < 20) setTimeout(() => enviar(intentos + 1), 200)
+      if (iframeReadyRef.current) {
+        // iframe ya está listo, enviar ahora
+        try { iframeRef.current?.contentWindow?.postMessage(msg, '*') } catch(e) {}
+      } else {
+        // Guardar para enviar cuando el iframe avise que está listo
+        pendingMsgRef.current = msg
+        // También intentar enviarlo con reintentos para teleprompter
+        if (tipo === 'teleprompter') {
+          let tries = 0
+          const send = () => {
+            tries++
+            if (iframeReadyRef.current) {
+              try { iframeRef.current?.contentWindow?.postMessage(msg, '*') } catch(e) {}
+              pendingMsgRef.current = null
+              return
+            }
+            if (tries < 20) setTimeout(send, 300)
+          }
+          setTimeout(send, 600)
         }
       }
-      enviar(0)
     } catch (e) {
       alert('Error al cargar proyecto')
       navigate('/projects')
     }
   }
 
+  // Teleprompter: iframe listo cuando JS inicializa (500ms tras onLoad)
   const handleIframeLoad = () => {
-    // La portada es ~1.3MB y tiene recursos pesados, esperar más
-    const delay = tipo === 'portada' ? 1500 : 500
-    setTimeout(() => {
-      iframeReadyRef.current = true
-    }, delay)
+    if (tipo === 'teleprompter') {
+      setTimeout(() => { iframeReadyRef.current = true }, 500)
+    }
+    // Portada: esperar señal portada_ready (no setTimeout)
   }
 
   const handleClickSaveNew = () => {
     try {
-      if (tipo === 'portada') {
-        iframeRef.current?.contentWindow?.postMessage('get_portada', '*')
-      } else {
-        iframeRef.current?.contentWindow?.postMessage('get_guion', '*')
-      }
+      iframeRef.current?.contentWindow?.postMessage(
+        tipo === 'portada' ? 'get_portada' : 'get_guion', '*'
+      )
     } catch(e) {}
     setTimeout(() => setShowSaveModal(true), 600)
   }
@@ -194,7 +205,6 @@ export default function Editor() {
           )}
         </div>
       </div>
-
       <div className="editor-frame">
         <iframe
           ref={iframeRef}
@@ -205,20 +215,14 @@ export default function Editor() {
           onLoad={handleIframeLoad}
         />
       </div>
-
       {showSaveModal && !id && (
         <div className="modal-overlay" onClick={() => setShowSaveModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-title">💾 Guardar Proyecto</div>
             <label className="label">Nombre del proyecto</label>
-            <input
-              className="input"
-              value={nombre}
-              onChange={e => setNombre(e.target.value)}
-              placeholder="Ej: 14va Sesión Ordinaria"
-              autoFocus
-              onKeyDown={e => e.key === 'Enter' && nombre.trim() && handleSaveNew()}
-            />
+            <input className="input" value={nombre} onChange={e => setNombre(e.target.value)}
+              placeholder="Ej: 14va Sesión Ordinaria" autoFocus
+              onKeyDown={e => e.key === 'Enter' && nombre.trim() && handleSaveNew()} />
             <div style={{display:'flex',gap:10,marginTop:20,justifyContent:'flex-end'}}>
               <button className="btn btn-ghost" onClick={() => setShowSaveModal(false)}>Cancelar</button>
               <button className="btn btn-gold" onClick={handleSaveNew} disabled={saving || !nombre.trim()}>
