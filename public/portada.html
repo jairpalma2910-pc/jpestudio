@@ -152,7 +152,7 @@ iVBORw0KGgoAAAANSUhEUgAABDgAAAQ4CAYAAADsEGyPAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAAB
   <div id="portadaQRDiv" style="margin:0 auto 10px;"></div>
   <div id="portadaQRUrl" style="color:#aaa;font-size:9px;word-break:break-all;"></div>
 </div>
-<button id="portadaQRBtn" onclick="togglePortadaQR()" style="display:none;position:fixed;bottom:24px;right:24px;z-index:9999;width:52px;height:52px;border-radius:50%;background:#C9A84C;color:#000;border:none;font-size:22px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.4);">📱</button>
+
 
 <button id="portadaSaveBtn" onclick="guardarPortada()" style="position:fixed;top:12px;right:110px;z-index:10000;background:#C9A84C;color:#000;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;font-family:Arial;font-weight:bold;letter-spacing:1px;">💾 GUARDAR</button>
 
@@ -1035,9 +1035,7 @@ var portadaWS = null, portadaSessionId = null, portadaWSTimer = null;
 
 function initPortadaWS(){
   portadaSessionId = 'P' + Math.random().toString(36).substring(2,7).toUpperCase();
-  // Mostrar botón QR
-  var btn = document.getElementById('portadaQRBtn');
-  if(btn) btn.style.display = 'block';
+
   // Conectar WS
   portadaWSConnect();
 }
@@ -1115,22 +1113,34 @@ function togglePortadaQR(){
   var panel = document.getElementById('portadaQRPanel');
   if(!panel) return;
   if(panel.style.display==='block'){ panel.style.display='none'; return; }
-  // Generar QR
   var url = window.location.origin + '/jpestudio/remote-portada.html?s='+portadaSessionId;
   document.getElementById('portadaQRUrl').textContent = url;
   var div = document.getElementById('portadaQRDiv');
   div.innerHTML = '';
-  if(typeof QRCode !== 'undefined'){
-    new QRCode(div,{text:url,width:160,height:160,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});
+  // Cargar QRCode.js dinámicamente si no está
+  function generarQR(){
+    if(typeof QRCode !== 'undefined'){
+      new QRCode(div,{text:url,width:180,height:180,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+    } else {
+      // Fallback: mostrar URL como texto
+      div.innerHTML = '<div style="color:#fff;font-size:11px;padding:8px;word-break:break-all;max-width:180px;">'+url+'</div>';
+    }
+  }
+  if(typeof QRCode === 'undefined'){
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+    s.onload = function(){ generarQR(); };
+    document.head.appendChild(s);
+  } else {
+    generarQR();
   }
   panel.style.display='block';
 }
 
 // Tecla Q en portada modo presentar
 document.addEventListener('keydown', function(e){
-  if(e.key==='q'||e.key==='Q'){
-    var btn=document.getElementById('portadaQRBtn');
-    if(btn && btn.style.display!=='none') togglePortadaQR();
+  if((e.key==='q'||e.key==='Q') && portadaSessionId){
+    togglePortadaQR();
   }
 });
 </script>
