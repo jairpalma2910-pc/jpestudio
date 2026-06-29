@@ -146,6 +146,14 @@ iVBORw0KGgoAAAANSUhEUgAABDgAAAQ4CAYAAADsEGyPAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAAB
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;700&family=Rajdhani:wght@600;700&family=Barlow+Condensed:wght@700&family=Anton&family=Teko:wght@600&family=Big+Shoulders+Display:wght@700&family=Exo+2:wght@700&family=Montserrat:wght@700;900&family=Roboto+Condensed:wght@700&display=swap" rel="stylesheet">
 
 <button id="toggleBarBtn" onclick="togglePanel()">&#9881; EDITOR</button>
+<!-- QR Panel portada (oculto hasta present_mode) -->
+<div id="portadaQRPanel" style="display:none;position:fixed;top:70px;right:20px;z-index:9999;background:rgba(0,0,0,0.88);border:2px solid #C9A84C;border-radius:14px;padding:16px;min-width:190px;text-align:center;font-family:Arial;">
+  <div style="color:#C9A84C;font-size:10px;letter-spacing:2px;margin-bottom:10px;">📱 CONTROL REMOTO</div>
+  <div id="portadaQRDiv" style="margin:0 auto 10px;"></div>
+  <div id="portadaQRUrl" style="color:#aaa;font-size:9px;word-break:break-all;"></div>
+</div>
+<button id="portadaQRBtn" onclick="togglePortadaQR()" style="display:none;position:fixed;bottom:24px;right:24px;z-index:9999;width:52px;height:52px;border-radius:50%;background:#C9A84C;color:#000;border:none;font-size:22px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.4);">📱</button>
+
 <button id="portadaSaveBtn" onclick="guardarPortada()" style="position:fixed;top:12px;right:110px;z-index:10000;background:#C9A84C;color:#000;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;font-family:Arial;font-weight:bold;letter-spacing:1px;">💾 GUARDAR</button>
 
 <div id="editPanel" class="hidden">
@@ -1018,6 +1026,111 @@ window.addEventListener('message', function(e) {
     var ids = ['editPanel','toggleBarBtn','epBtn','portadaSaveBtn'];
     ids.forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display='none'; });
     initPresentMode();
+    initPortadaWS();
+  }
+});
+
+// ══ WEBSOCKET PORTADA ══
+var portadaWS = null, portadaSessionId = null, portadaWSTimer = null;
+
+function initPortadaWS(){
+  portadaSessionId = 'P' + Math.random().toString(36).substring(2,7).toUpperCase();
+  // Mostrar botón QR
+  var btn = document.getElementById('portadaQRBtn');
+  if(btn) btn.style.display = 'block';
+  // Conectar WS
+  portadaWSConnect();
+}
+
+function portadaWSConnect(){
+  try { if(portadaWS) portadaWS.close(); } catch(e){}
+  portadaWS = new WebSocket('wss://jpestudio-api.onrender.com/ws?session='+portadaSessionId+'&role=screen');
+  portadaWS.onopen = function(){ clearTimeout(portadaWSTimer); };
+  portadaWS.onmessage = function(e){
+    try {
+      var msg = JSON.parse(e.data);
+      var action = msg.action || '';
+      // Colores de fondo
+      if(action.indexOf('bg:')===0){ changeBg(action.substring(3)); }
+      // Líneas
+      else if(action==='line_top'){ toggleLine('.line-top'); }
+      else if(action==='line_bottom'){ toggleLine('.line-bottom'); }
+      else if(action==='divider'){ toggleLine('.divider'); }
+      // Logo
+      else if(action==='logo_toggle'){ toggleLogo && toggleLogo(); }
+      else if(action==='logo_up'){ var lw=qel('.logo-wrapper'); if(lw){ var w=parseInt(lw.style.width)||400; lw.style.width=Math.min(900,w+30)+'px'; } }
+      else if(action==='logo_down'){ var lw=qel('.logo-wrapper'); if(lw){ var w=parseInt(lw.style.width)||400; lw.style.width=Math.max(100,w-30)+'px'; } }
+      // Dragón
+      else if(action==='dragon_up'){ var d=qel('.dragon1'),d2=qel('.dragon2'); if(d){ var op=Math.min(1,parseFloat(d.style.opacity||0.22)+0.1); d.style.opacity=op; if(d2)d2.style.opacity=op; } }
+      else if(action==='dragon_down'){ var d=qel('.dragon1'),d2=qel('.dragon2'); if(d){ var op=Math.max(0,parseFloat(d.style.opacity||0.22)-0.1); d.style.opacity=op; if(d2)d2.style.opacity=op; } }
+      // Textos
+      else if(action.indexOf('txt_sesion:')===0){ changeText('.session-number', action.substring(11)); }
+      else if(action.indexOf('txt_titulo:')===0){ changeText('.session-title',  action.substring(11)); }
+      else if(action.indexOf('txt_sub:')===0){    changeText('.session-sub',    action.substring(8)); }
+      // Tamaño texto
+      else if(action==='sz_sesion_up'){ var el=qel('.session-number'); if(el){ var s=parseInt(el.style.fontSize)||28; el.style.fontSize=Math.min(100,s+2)+'px'; } }
+      else if(action==='sz_sesion_down'){ var el=qel('.session-number'); if(el){ var s=parseInt(el.style.fontSize)||28; el.style.fontSize=Math.max(12,s-2)+'px'; } }
+      else if(action==='sz_titulo_up'){ var el=qel('.session-title'); if(el){ var s=parseInt(el.style.fontSize)||50; el.style.fontSize=Math.min(130,s+4)+'px'; } }
+      else if(action==='sz_titulo_down'){ var el=qel('.session-title'); if(el){ var s=parseInt(el.style.fontSize)||50; el.style.fontSize=Math.max(16,s-4)+'px'; } }
+      else if(action==='sz_sub_up'){ var el=qel('.session-sub'); if(el){ var s=parseInt(el.style.fontSize)||16; el.style.fontSize=Math.min(60,s+2)+'px'; } }
+      else if(action==='sz_sub_down'){ var el=qel('.session-sub'); if(el){ var s=parseInt(el.style.fontSize)||16; el.style.fontSize=Math.max(8,s-2)+'px'; } }
+      // Esquinas
+      else if(action==='corners_toggle'){
+        var cs=document.querySelectorAll('.corner');
+        var vis=cs.length&&cs[0].style.display!=='none';
+        cs.forEach(function(c){ c.style.display=vis?'none':''; });
+      }
+      // Colores de texto
+      else if(action.indexOf('col_sesion:')===0){ changeColor('.session-number', action.substring(11)); }
+      else if(action.indexOf('col_titulo:')===0){ changeColor('.session-title',  action.substring(11)); }
+      else if(action.indexOf('col_sub:')===0){    changeColor('.session-sub',    action.substring(8)); }
+      // Color líneas y esquinas
+      else if(action.indexOf('line_color:')===0){ changeLineColor(action.substring(11)); }
+      else if(action.indexOf('corner_color:')===0){ changeCornerColor(action.substring(13)); }
+      // Reset posición
+      else if(action==='reset_pos'){ location.reload(); }
+      // Efectos de texto
+      else if(action.indexOf('fx_sesion:')===0){
+        lastClickedText='.session-number';
+        var fx=action.substring(10);
+        if(fx==='clear') clearFx(); else applyFx(fx);
+      }
+      else if(action.indexOf('fx_titulo:')===0){
+        lastClickedText='.session-title';
+        var fx=action.substring(10);
+        if(fx==='clear') clearFx(); else applyFx(fx);
+      }
+      else if(action.indexOf('fx_sub:')===0){
+        lastClickedText='.session-sub';
+        var fx=action.substring(7);
+        if(fx==='clear') clearFx(); else applyFx(fx);
+      }
+    } catch(err){ console.error(err); }
+  };
+  portadaWS.onclose = function(){ portadaWSTimer = setTimeout(portadaWSConnect, 4000); };
+  portadaWS.onerror = function(){ try{portadaWS.close();}catch(e){} };
+}
+
+function togglePortadaQR(){
+  var panel = document.getElementById('portadaQRPanel');
+  if(!panel) return;
+  if(panel.style.display==='block'){ panel.style.display='none'; return; }
+  // Generar QR
+  var url = window.location.origin + '/jpestudio/remote-portada.html?s='+portadaSessionId;
+  document.getElementById('portadaQRUrl').textContent = url;
+  var div = document.getElementById('portadaQRDiv');
+  div.innerHTML = '';
+  if(typeof QRCode !== 'undefined'){
+    new QRCode(div,{text:url,width:160,height:160,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});
+  }
+  panel.style.display='block';
+}
+
+// Tecla Q en portada modo presentar
+document.addEventListener('keydown', function(e){
+  if(e.key==='q'||e.key==='Q'){
+    var btn=document.getElementById('portadaQRBtn');
+    if(btn && btn.style.display!=='none') togglePortadaQR();
   }
 });
 </script>
