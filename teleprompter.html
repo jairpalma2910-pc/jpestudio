@@ -245,7 +245,8 @@ iVBORw0KGgoAAAANSUhEUgAABDgAAAQ4CAYAAADsEGyPAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAAB
 
 <!-- QR CONTROL REMOTO -->
 <div id="qrPanel" style="position:fixed;top:80px;right:20px;z-index:200;background:rgba(0,0,0,0.85);border:2px solid #C9A84C;border-radius:12px;padding:16px;display:none;min-width:200px;text-align:center;">
-  <div style="color:#C9A84C;font-size:11px;font-family:Arial;letter-spacing:2px;margin-bottom:10px;">📱 CONTROL REMOTO</div>
+  <div style="color:#C9A84C;font-size:11px;font-family:Arial;letter-spacing:2px;margin-bottom:6px;">📱 CONTROL REMOTO</div>
+  <div id="wsStatusBadge" style="font-size:11px;font-family:Arial;padding:3px 10px;border-radius:10px;margin-bottom:8px;background:rgba(255,165,0,0.2);color:#ffa500;border:1px solid #ffa500;">⏳ Conectando...</div>
   <canvas id="qrCanvas" style="display:block;margin:0 auto 10px;border-radius:4px;"></canvas>
   <div id="qrUrl" style="color:#aaa;font-size:10px;font-family:Arial;word-break:break-all;margin-bottom:8px;"></div>
   <div style="border-top:1px solid #333;margin-top:8px;padding-top:8px;">
@@ -1261,24 +1262,38 @@ function wsConnect(){
     wsConn.onopen = function(){
       console.log('[WS] Screen conectada, sesión:', wsSessionId);
       clearTimeout(wsReconnectTimer);
+      var b=document.getElementById('wsStatusBadge');
+      if(b){ b.textContent='🟢 WS Listo - ID: '+wsSessionId; b.style.background='rgba(76,175,80,0.2)'; b.style.color='#81c784'; b.style.border='1px solid #81c784'; }
+      wsSendState();
     };
     wsConn.onmessage = function(e){
       try {
         var msg = JSON.parse(e.data);
         if(msg.type === 'remote_connected'){
           showZoomHint('📱 Control remoto conectado');
+          var b=document.getElementById('wsStatusBadge'); if(b){ b.textContent='📱 Cel conectado ✓'; b.style.color='#C9A84C'; }
         }
-        // Comandos del remote — soportar ambos formatos
+        // Comandos del remote
         var action = msg.cmd || msg.action || '';
-        if(action === 'toggle') togglePlay();
+        console.log('[WS] Recibido:', action, msg);
+        if(action === 'toggle'){ togglePlay(); wsSendState(); }
         else if(action === 'up') goUp();
         else if(action === 'down') goDown();
         else if(action === 'stop') stopFn();
+        else if(action === 'speed'){
+          // remote envía action:'speed' con el valor en msg.speed
+          if(msg.speed) spd = parseInt(msg.speed);
+          var sl=document.querySelector('#bar input[type=range]'); if(sl) sl.value=spd;
+          document.getElementById('spdv').textContent=spd;
+          wsSendState();
+        }
         else if(action === 'speed_up' || action === 'faster'){ spd=Math.min(10,spd+1); var sl=document.querySelector('#bar input[type=range]'); if(sl) sl.value=spd; document.getElementById('spdv').textContent=spd; wsSendState(); }
         else if(action === 'speed_down' || action === 'slower'){ spd=Math.max(1,spd-1); var sl=document.querySelector('#bar input[type=range]'); if(sl) sl.value=spd; document.getElementById('spdv').textContent=spd; wsSendState(); }
       } catch(err){}
     };
     wsConn.onclose = function(){
+      var b=document.getElementById('wsStatusBadge');
+      if(b){ b.textContent='🔴 Reconectando...'; b.style.background='rgba(138,21,21,0.3)'; b.style.color='#ef9a9a'; b.style.border='1px solid #ef9a9a'; }
       wsReconnectTimer = setTimeout(wsConnect, 3000);
     };
     wsConn.onerror = function(){ wsConn.close(); };
@@ -1290,6 +1305,10 @@ function wsSendState(){
   if(!wsConn || wsConn.readyState !== 1) return;
   wsConn.send(JSON.stringify({ type:'state', playing:playing, speed:spd }));
 }
+// Enviar estado periódicamente para mantener sincronizado
+setInterval(function(){
+  if(wsConn && wsConn.readyState === 1) wsSendState();
+}, 2000);
 
 // Conectar al cargar
 wsConnect();
