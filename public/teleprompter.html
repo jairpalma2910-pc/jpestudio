@@ -205,6 +205,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#6B1020;font-family:
 }
 .color-swatch.selected{border-color:#fff;}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -243,13 +244,19 @@ iVBORw0KGgoAAAANSUhEUgAABDgAAAQ4CAYAAADsEGyPAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAAB
 </div>
 
 <!-- QR CONTROL REMOTO -->
-<div id="qrPanel" class="widget">
-  <div style="color:#C9A84C;font-size:11px;font-family:Arial;letter-spacing:1px;margin-bottom:8px;">⌨️ ATAJOS DE TECLADO</div>
-  <div style="color:#fff;font-size:12px;font-family:Arial;line-height:2;text-align:left;">
-    <span style="color:#C9A84C;">ESPACIO</span> → Play / Pausa<br>
-    <span style="color:#C9A84C;">↑ ↓</span> → Subir / Bajar<br>
-    <span style="color:#C9A84C;">H</span> → Ocultar barra<br>
-    <span style="color:#C9A84C;">DOBLE CLIC</span> → Mostrar barra
+<div id="qrPanel" style="position:fixed;top:80px;right:20px;z-index:200;background:rgba(0,0,0,0.85);border:2px solid #C9A84C;border-radius:12px;padding:16px;display:none;min-width:200px;text-align:center;">
+  <div style="color:#C9A84C;font-size:11px;font-family:Arial;letter-spacing:2px;margin-bottom:10px;">📱 CONTROL REMOTO</div>
+  <canvas id="qrCanvas" style="display:block;margin:0 auto 10px;border-radius:4px;"></canvas>
+  <div id="qrUrl" style="color:#aaa;font-size:10px;font-family:Arial;word-break:break-all;margin-bottom:8px;"></div>
+  <div style="border-top:1px solid #333;margin-top:8px;padding-top:8px;">
+    <div style="color:#C9A84C;font-size:10px;letter-spacing:1px;margin-bottom:6px;">⌨️ ATAJOS</div>
+    <div style="color:#fff;font-size:11px;font-family:Arial;line-height:1.8;text-align:left;">
+      <span style="color:#C9A84C;">ESPACIO</span> → Play/Pausa<br>
+      <span style="color:#C9A84C;">↑ ↓</span> → Subir/Bajar<br>
+      <span style="color:#C9A84C;">← →</span> → Velocidad<br>
+      <span style="color:#C9A84C;">H</span> → Ocultar barra<br>
+      <span style="color:#C9A84C;">Q</span> → Este panel
+    </div>
   </div>
 </div>
 
@@ -658,6 +665,7 @@ document.addEventListener('keydown',function(e){
   else if(e.code==='ArrowRight'){ e.preventDefault(); spd=Math.min(10,spd+1); var sl=document.querySelector('#bar input[type=range]'); if(sl) sl.value=spd; document.getElementById('spdv').textContent=spd; }
   else if(e.code==='ArrowLeft'){ e.preventDefault(); spd=Math.max(1,spd-1); var sl=document.querySelector('#bar input[type=range]'); if(sl) sl.value=spd; document.getElementById('spdv').textContent=spd; }
   else if(e.key==='h'||e.key==='H'){ if(barVis) hidebar(); else showBarFn(); }
+  else if(e.key==='q'||e.key==='Q'){ toggleQR(); }
 });
 
 // ══════════════════════════════════════════
@@ -686,7 +694,24 @@ function togEl(id,btn){ var el=document.getElementById(id); var vis=el.style.dis
 var cronoInt=null,cronoSecs=0;
 function togCrono(btn){ var c=document.getElementById('crono'); var vis=c.style.display==='block'; c.style.display=vis?'none':'block'; if(!vis && !cronoInt) startCrono(); }
 function startCrono(){ cronoInt=setInterval(function(){ cronoSecs++; var h=Math.floor(cronoSecs/3600),m=Math.floor((cronoSecs%3600)/60),s=cronoSecs%60; document.getElementById('cronoTime').textContent=[h,m,s].map(function(x){ return x<10?'0'+x:''+x; }).join(':'); },1000); }
-function togQR(btn){ var q=document.getElementById('qrPanel'); var vis=q.style.display==='block'; q.style.display=vis?'none':'block'; }
+function toggleQR(){
+  var q=document.getElementById('qrPanel');
+  if(q.style.display==='block'){ q.style.display='none'; return; }
+  // Generar QR con URL del control remoto
+  var url = window.location.origin + '/jpestudio/remote.html';
+  document.getElementById('qrUrl').textContent = url;
+  // Generar QR usando QRCode.js si está disponible, sino mostrar URL
+  if(typeof QRCode !== 'undefined'){
+    var canvas = document.getElementById('qrCanvas');
+    canvas.width=160; canvas.height=160;
+    QRCode.toCanvas(canvas, url, {width:160,margin:1,color:{dark:'#000',light:'#fff'}}, function(){});
+  } else {
+    // Fallback: mostrar link
+    document.getElementById('qrCanvas').style.display='none';
+  }
+  q.style.display='block';
+}
+function togQR(btn){ toggleQR(); }
 function toggleGuia(){ ['ft','fb'].forEach(function(id){ var e=document.getElementById(id); e.style.display=e.style.display==='block'?'none':'block'; }); }
 function getPersonaColor(quien){
   if(!quien) return '#C9A84C';
