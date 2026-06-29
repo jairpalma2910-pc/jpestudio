@@ -2,110 +2,283 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Control Remoto - JP Estudio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Control Remoto — JP Estudio</title>
 <style>
-* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-body { background:#0a0005; color:#fff; font-family:Arial,sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:20px; }
-
-.header { text-align:center; margin-bottom:24px; padding-top:10px; }
-.logo { font-size:24px; font-weight:900; color:#C9A84C; letter-spacing:2px; }
-.session-id { font-size:11px; color:#555; margin-top:4px; }
-
-.status { 
-  padding:8px 20px; border-radius:20px; font-size:13px; font-weight:600;
-  margin-bottom:24px; letter-spacing:1px;
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --guinda:#6B1020;
+  --guinda-dark:#4a0b16;
+  --guinda-light:#8B1A2A;
+  --gold:#C9A84C;
+  --gold-dark:#a07a2a;
+  --bg:#0d0408;
+  --bg2:#1a0810;
+  --text:#fff;
+  --text-dim:#aaa;
 }
-.status.connecting { background:rgba(255,165,0,0.2); color:#ffa500; border:1px solid #ffa500; }
-.status.connected   { background:rgba(76,175,80,0.2); color:#81c784; border:1px solid #81c784; }
-.status.error       { background:rgba(138,21,21,0.3); color:#ef9a9a; border:1px solid #ef9a9a; }
+html,body{width:100%;min-height:100vh;background:var(--bg);color:var(--text);font-family:'Arial',sans-serif;overflow-x:hidden;}
 
-/* Botones principales */
-.main-controls { display:grid; grid-template-columns:1fr 1fr; gap:14px; width:100%; max-width:340px; margin-bottom:24px; }
+/* HEADER */
+.header{
+  background:linear-gradient(135deg,var(--guinda-dark),var(--guinda));
+  border-bottom:2px solid var(--gold);
+  padding:12px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+}
+.header-logo{font-size:18px;font-weight:900;color:var(--gold);letter-spacing:3px;}
+.header-session{font-size:10px;color:rgba(201,168,76,0.6);letter-spacing:1px;margin-top:2px;}
 
-.ctrl-btn {
-  padding:28px 10px;
-  border:none; border-radius:16px;
-  font-size:28px; font-weight:bold;
-  cursor:pointer; transition:all 0.15s;
-  display:flex; flex-direction:column; align-items:center; gap:8px;
-  -webkit-user-select:none; user-select:none;
+/* STATUS */
+.status-bar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 16px;background:var(--bg2);border-bottom:1px solid #2a1020;
 }
-.ctrl-btn span { font-size:12px; font-weight:600; letter-spacing:1px; }
-.ctrl-btn:active { transform:scale(0.94); }
+.status-dot{
+  display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;letter-spacing:1px;
+}
+.dot{width:8px;height:8px;border-radius:50%;background:#555;transition:background 0.3s;}
+.dot.green{background:#4caf50;box-shadow:0 0 8px #4caf50;}
+.dot.orange{background:#ff9800;animation:pulse 1s infinite;}
+.dot.red{background:#f44336;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.screen-status{font-size:11px;color:var(--text-dim);}
 
-.btn-play  { background:#C9A84C; color:#000; grid-column:1/-1; padding:32px; }
-.btn-up    { background:#1a1a3e; color:#C9A84C; border:2px solid #C9A84C; }
-.btn-down  { background:#1a1a3e; color:#C9A84C; border:2px solid #C9A84C; }
-.btn-stop  { background:#8a1515; color:#fff; grid-column:1/-1; padding:20px; }
+/* SCROLL CONTENT */
+.content{padding:14px;display:flex;flex-direction:column;gap:14px;max-width:420px;margin:0 auto;}
 
-/* Velocidad */
-.speed-section { width:100%; max-width:340px; margin-bottom:24px; }
-.speed-label { font-size:12px; color:#888; letter-spacing:2px; text-transform:uppercase; margin-bottom:12px; text-align:center; }
-.speed-controls { display:flex; align-items:center; gap:12px; justify-content:center; }
-.speed-btn {
-  width:52px; height:52px; border-radius:50%;
-  border:2px solid #C9A84C; background:transparent;
-  color:#C9A84C; font-size:22px; font-weight:bold;
-  cursor:pointer; transition:all 0.15s; display:flex; align-items:center; justify-content:center;
+/* SECTION LABEL */
+.sec-label{
+  font-size:10px;letter-spacing:3px;color:var(--gold);
+  text-transform:uppercase;font-weight:700;
+  border-bottom:1px solid rgba(201,168,76,0.2);
+  padding-bottom:6px;margin-bottom:10px;
 }
-.speed-btn:active { background:#C9A84C; color:#000; transform:scale(0.92); }
-.speed-display {
-  font-size:36px; font-weight:900; color:#C9A84C;
-  min-width:60px; text-align:center;
-}
-.speed-bar {
-  width:100%; height:6px; background:#1a1a1a; border-radius:3px; margin-top:10px; overflow:hidden;
-}
-.speed-fill { height:100%; background:#C9A84C; border-radius:3px; transition:width 0.2s; }
 
-/* Estado pantalla */
-.screen-status { 
-  font-size:12px; color:#555; text-align:center; margin-top:8px;
-  padding:8px; border:1px solid #1a1a1a; border-radius:8px; width:100%; max-width:340px;
+/* PLAY AREA */
+.play-section{background:var(--bg2);border:1px solid var(--guinda-light);border-radius:16px;padding:14px;}
+
+.play-btn{
+  width:100%;padding:22px;border:none;border-radius:12px;
+  background:linear-gradient(135deg,var(--gold),var(--gold-dark));
+  color:#000;font-size:32px;font-weight:900;
+  cursor:pointer;transition:all 0.15s;
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  box-shadow:0 4px 20px rgba(201,168,76,0.3);
+  letter-spacing:2px;
 }
+.play-btn:active{transform:scale(0.96);box-shadow:none;}
+.play-btn.paused{background:linear-gradient(135deg,#81c784,#388e3c);color:#fff;}
+
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+.ctrl-btn{
+  padding:16px 8px;border:none;border-radius:10px;
+  font-size:22px;font-weight:700;cursor:pointer;
+  transition:all 0.15s;display:flex;flex-direction:column;
+  align-items:center;gap:5px;
+}
+.ctrl-btn span{font-size:10px;letter-spacing:1px;font-weight:600;}
+.ctrl-btn:active{transform:scale(0.93);}
+.btn-stop{background:var(--guinda);color:#fff;border:1px solid var(--guinda-light);}
+.btn-restart{background:#1a1a3a;color:var(--gold);border:1px solid var(--gold);}
+.btn-up{background:#0d1a2e;color:var(--gold);border:1px solid rgba(201,168,76,0.4);}
+.btn-down{background:#0d1a2e;color:var(--gold);border:1px solid rgba(201,168,76,0.4);}
+
+/* VELOCIDAD */
+.speed-section{background:var(--bg2);border:1px solid var(--guinda-light);border-radius:16px;padding:14px;}
+.speed-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.speed-btn{
+  width:52px;height:52px;border-radius:50%;
+  border:2px solid var(--gold);background:transparent;
+  color:var(--gold);font-size:24px;font-weight:900;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all 0.15s;flex-shrink:0;
+}
+.speed-btn:active{background:var(--gold);color:#000;}
+.speed-display{
+  font-size:48px;font-weight:900;color:var(--gold);
+  text-align:center;flex:1;line-height:1;
+  text-shadow:0 0 20px rgba(201,168,76,0.5);
+}
+.speed-label{font-size:10px;color:var(--text-dim);text-align:center;letter-spacing:2px;}
+.speed-bar{height:4px;background:#2a1020;border-radius:2px;margin-top:10px;overflow:hidden;}
+.speed-fill{height:100%;background:linear-gradient(90deg,var(--guinda-light),var(--gold));border-radius:2px;transition:width 0.3s;}
+
+/* SCROLL */
+.scroll-section{background:var(--bg2);border:1px solid var(--guinda-light);border-radius:16px;padding:14px;}
+.scroll-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.scroll-btn{
+  padding:18px 8px;border:none;border-radius:10px;
+  font-size:28px;cursor:pointer;transition:all 0.15s;
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  background:#0d1a2e;color:var(--gold);border:1px solid rgba(201,168,76,0.3);
+}
+.scroll-btn span{font-size:10px;letter-spacing:1px;color:var(--text-dim);}
+.scroll-btn:active{background:var(--guinda);transform:scale(0.94);}
+
+/* TIEMPO */
+.tiempo-section{background:var(--bg2);border:1px solid var(--guinda-light);border-radius:16px;padding:14px;}
+.tiempo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.tiempo-btn{
+  padding:14px 8px;border:none;border-radius:10px;
+  font-size:20px;cursor:pointer;transition:all 0.15s;
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  color:#fff;
+}
+.tiempo-btn span{font-size:10px;letter-spacing:1px;}
+.tiempo-btn:active{transform:scale(0.94);}
+.tb-crono{background:linear-gradient(135deg,#1a3a1a,#2a5a2a);border:1px solid #4caf50;}
+.tb-crono-reset{background:linear-gradient(135deg,#2a2a1a,#4a4a1a);border:1px solid #ff9800;color:#ff9800;}
+.tb-reloj{background:linear-gradient(135deg,#1a1a3a,#2a2a5a);border:1px solid #64b5f6;color:#64b5f6;}
+.tb-zoom-up{background:linear-gradient(135deg,var(--guinda-dark),var(--guinda));border:1px solid var(--guinda-light);}
+.tb-zoom-down{background:linear-gradient(135deg,#1a1a1a,#2a2a2a);border:1px solid #555;}
+
+/* FONDOS */
+.fondos-section{background:var(--bg2);border:1px solid var(--guinda-light);border-radius:16px;padding:14px;}
+.fondos-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+.fondo-btn{
+  aspect-ratio:1;border-radius:8px;border:2px solid transparent;
+  cursor:pointer;transition:all 0.15s;
+}
+.fondo-btn:active{transform:scale(0.9);}
+.fondo-btn.active{border-color:var(--gold);box-shadow:0 0 10px rgba(201,168,76,0.5);}
+
+/* ZOOM TEXTO */
+.zoom-section{background:var(--bg2);border:1px solid var(--guinda-light);border-radius:16px;padding:14px;}
+.zoom-row{display:flex;gap:10px;}
+.zoom-btn{
+  flex:1;padding:14px;border:none;border-radius:10px;
+  font-size:20px;font-weight:900;cursor:pointer;transition:all 0.15s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.zoom-btn span{font-size:11px;letter-spacing:1px;}
+.zoom-btn:active{transform:scale(0.95);}
+.zb-up{background:var(--guinda);color:#fff;border:1px solid var(--guinda-light);}
+.zb-down{background:#1a1a1a;color:var(--text-dim);border:1px solid #333;}
+
+/* FOOTER */
+.footer{padding:20px;text-align:center;color:#2a1020;font-size:11px;letter-spacing:2px;}
 </style>
 </head>
 <body>
 
 <div class="header">
-  <div class="logo">JP ESTUDIO</div>
-  <div class="session-id" id="sessionLabel">Control Remoto</div>
-</div>
-
-<div class="status connecting" id="status">⏳ Conectando...</div>
-
-<div class="main-controls">
-  <button class="ctrl-btn btn-play" onclick="send('toggle')">
-    <span id="playIcon">▶</span>
-    <span id="playLabel">PLAY</span>
-  </button>
-  <button class="ctrl-btn btn-up" onclick="send('up')">
-    ⬆️
-    <span>SUBIR</span>
-  </button>
-  <button class="ctrl-btn btn-down" onclick="send('down')">
-    ⬇️
-    <span>BAJAR</span>
-  </button>
-  <button class="ctrl-btn btn-stop" onclick="send('stop')">
-    ⏹ <span>DETENER Y REINICIAR</span>
-  </button>
-</div>
-
-<div class="speed-section">
-  <div class="speed-label">Velocidad</div>
-  <div class="speed-controls">
-    <button class="speed-btn" onclick="changeSpeed(-1)">−</button>
-    <div class="speed-display" id="speedDisplay">3</div>
-    <button class="speed-btn" onclick="changeSpeed(1)">+</button>
+  <div>
+    <div class="header-logo">JP ESTUDIO</div>
+    <div class="header-session" id="sessionLabel">Control Remoto</div>
   </div>
-  <div class="speed-bar">
-    <div class="speed-fill" id="speedFill" style="width:30%"></div>
+  <div style="text-align:right;">
+    <div style="font-size:11px;color:var(--gold);font-weight:700;">TELEPROMPTER</div>
+    <div style="font-size:10px;color:rgba(201,168,76,0.5);margin-top:2px;">SITT Tijuana</div>
   </div>
 </div>
 
-<div class="screen-status" id="screenStatus">📺 Esperando pantalla...</div>
+<div class="status-bar">
+  <div class="status-dot">
+    <div class="dot orange" id="statusDot"></div>
+    <span id="statusText">Conectando...</span>
+  </div>
+  <div class="screen-status" id="screenStatus">📺 Esperando pantalla...</div>
+</div>
+
+<div class="content">
+
+  <!-- PLAY / PAUSA / STOP / REINICIAR -->
+  <div class="play-section">
+    <div class="sec-label">▶ Control de Reproducción</div>
+    <button class="play-btn" id="playBtn" onclick="send('toggle')">
+      <span id="playIcon">▶</span>
+      <span id="playLabel">PLAY</span>
+    </button>
+    <div class="btn-row">
+      <button class="ctrl-btn btn-stop" onclick="send('stop')">
+        ⏹
+        <span>STOP</span>
+      </button>
+      <button class="ctrl-btn btn-restart" onclick="send('restart')">
+        ↺
+        <span>REINICIAR</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- VELOCIDAD -->
+  <div class="speed-section">
+    <div class="sec-label">⚡ Velocidad</div>
+    <div class="speed-row">
+      <button class="speed-btn" onclick="changeSpeed(-1)">−</button>
+      <div>
+        <div class="speed-display" id="speedDisplay">3</div>
+        <div class="speed-label">VELOCIDAD</div>
+      </div>
+      <button class="speed-btn" onclick="changeSpeed(+1)">+</button>
+    </div>
+    <div class="speed-bar">
+      <div class="speed-fill" id="speedFill" style="width:30%"></div>
+    </div>
+  </div>
+
+  <!-- SCROLL -->
+  <div class="scroll-section">
+    <div class="sec-label">↕ Desplazamiento</div>
+    <div class="scroll-row">
+      <button class="scroll-btn" onclick="send('up')">
+        ⬆️
+        <span>SUBIR</span>
+      </button>
+      <button class="scroll-btn" onclick="send('down')">
+        ⬇️
+        <span>BAJAR</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- TEXTO ZOOM -->
+  <div class="zoom-section">
+    <div class="sec-label">🔤 Tamaño de Texto</div>
+    <div class="zoom-row">
+      <button class="zoom-btn zb-up" onclick="send('zoom_in')">
+        A+ <span>MÁS GRANDE</span>
+      </button>
+      <button class="zoom-btn zb-down" onclick="send('zoom_out')">
+        A− <span>MÁS CHICO</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- TIEMPO -->
+  <div class="tiempo-section">
+    <div class="sec-label">⏱ Tiempo</div>
+    <div class="tiempo-grid">
+      <button class="tiempo-btn tb-crono" onclick="send('crono_toggle')">
+        ⏱
+        <span>CRONÓMETRO</span>
+      </button>
+      <button class="tiempo-btn tb-crono-reset" onclick="send('crono_reset')">
+        🔄
+        <span>RESET CRONO</span>
+      </button>
+      <button class="tiempo-btn tb-reloj" onclick="send('reloj_toggle')">
+        🕐
+        <span>RELOJ</span>
+      </button>
+      <button class="tiempo-btn" style="background:linear-gradient(135deg,#1a0a2a,#2a1a3a);border:1px solid #ce93d8;color:#ce93d8;" onclick="send('panel_toggle')">
+        ⚙️
+        <span>OPCIONES</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- COLORES DE FONDO -->
+  <div class="fondos-section">
+    <div class="sec-label">🎨 Color de Fondo</div>
+    <div class="fondos-grid" id="fondosGrid"></div>
+  </div>
+
+</div>
+
+<div class="footer">JP ESTUDIO • SITT TIJUANA</div>
 
 <script>
 const params = new URLSearchParams(window.location.search);
@@ -118,66 +291,101 @@ let ws = null;
 let playing = false;
 let speed = 3;
 let reconnectTimer = null;
+let reconnectCount = 0;
+
+// Fondos
+const fondos = [
+  '#6B1020','#500e18','#000000','#1a1a1a','#1A4A6B',
+  '#1B4D3E','#2a0a3a','#3a2500','#fff','#0d0d0d'
+];
+const fondosGrid = document.getElementById('fondosGrid');
+fondos.forEach(function(col, i){
+  var btn = document.createElement('button');
+  btn.className = 'fondo-btn';
+  btn.id = 'fondo-' + i;
+  btn.style.background = col;
+  btn.style.border = col === '#fff' ? '2px solid #555' : '2px solid transparent';
+  btn.onclick = function(){ send('bg:' + col); setActiveFondo(i); };
+  fondosGrid.appendChild(btn);
+});
+
+function setActiveFondo(idx){
+  document.querySelectorAll('.fondo-btn').forEach(function(b){ b.classList.remove('active'); });
+  var b = document.getElementById('fondo-' + idx);
+  if(b) b.classList.add('active');
+}
 
 function connect() {
-  ws = new WebSocket(`${WS_URL}?session=${sessionId}&role=remote`);
+  ws = new WebSocket(WS_URL + '?session=' + sessionId + '&role=remote');
 
-  ws.onopen = () => {
-    setStatus('connected', '🟢 Conectado');
+  ws.onopen = function(){
+    reconnectCount = 0;
+    setStatus('green','🟢 Conectado');
     clearTimeout(reconnectTimer);
   };
 
-  ws.onmessage = (e) => {
+  ws.onmessage = function(e){
     try {
-      const msg = JSON.parse(e.data);
-      if (msg.type === 'state') {
+      var msg = JSON.parse(e.data);
+      if(msg.type === 'state'){
         playing = msg.playing;
-        speed = msg.speed;
+        speed = msg.speed || speed;
         updateUI();
-      } else if (msg.type === 'screen_disconnected') {
+      } else if(msg.type === 'screen_disconnected'){
         document.getElementById('screenStatus').textContent = '📺 Pantalla desconectada';
-      } else if (msg.type === 'screen_connected' || msg.type === 'remote_connected') {
+      } else if(msg.type === 'connected' || msg.type === 'remote_connected'){
         document.getElementById('screenStatus').textContent = '📺 Pantalla conectada ✓';
       }
-    } catch(e) {}
+    } catch(err){}
   };
 
-  ws.onclose = () => {
-    setStatus('error', '🔴 Desconectado');
+  ws.onclose = function(){
+    reconnectCount++;
+    setStatus('orange', reconnectCount <= 3 ? '⏳ Reconectando...' : '⚠️ Servidor dormido (~30s)');
     reconnectTimer = setTimeout(connect, 3000);
   };
 
-  ws.onerror = () => {
-    setStatus('error', '❌ Error de conexión');
-  };
+  ws.onerror = function(){ setStatus('red','🔴 Error de conexión'); };
 }
 
-function setStatus(cls, text) {
-  const el = document.getElementById('status');
-  el.className = 'status ' + cls;
-  el.textContent = text;
+function setStatus(color, text){
+  var dot = document.getElementById('statusDot');
+  dot.className = 'dot ' + color;
+  document.getElementById('statusText').textContent = text;
 }
 
-function send(action) {
-  if (!ws || ws.readyState !== 1) return;
-  ws.send(JSON.stringify({ action, speed }));
-  // Feedback local inmediato
-  if (action === 'toggle') {
+function send(action){
+  if(!ws || ws.readyState !== 1){ setStatus('orange','Sin conexión'); return; }
+  ws.send(JSON.stringify({ action: action, speed: speed }));
+  // Feedback inmediato
+  if(action === 'toggle'){
     playing = !playing;
     updateUI();
   }
+  // Vibrar
+  if(navigator.vibrate) navigator.vibrate(30);
 }
 
-function changeSpeed(delta) {
+function changeSpeed(delta){
   speed = Math.max(1, Math.min(10, speed + delta));
   document.getElementById('speedDisplay').textContent = speed;
   document.getElementById('speedFill').style.width = (speed * 10) + '%';
-  if (ws?.readyState === 1) ws.send(JSON.stringify({ action: 'speed', speed }));
+  send('speed:' + speed);
 }
 
-function updateUI() {
-  document.getElementById('playIcon').textContent = playing ? '⏸' : '▶';
-  document.getElementById('playLabel').textContent = playing ? 'PAUSA' : 'PLAY';
+function updateUI(){
+  var btn = document.getElementById('playBtn');
+  var icon = document.getElementById('playIcon');
+  var label = document.getElementById('playLabel');
+  if(playing){
+    btn.className = 'play-btn paused';
+    icon.textContent = '⏸';
+    label.textContent = 'PAUSA';
+  } else {
+    btn.className = 'play-btn';
+    icon.textContent = '▶';
+    label.textContent = 'PLAY';
+  }
   document.getElementById('speedDisplay').textContent = speed;
   document.getElementById('speedFill').style.width = (speed * 10) + '%';
 }
