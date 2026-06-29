@@ -729,6 +729,42 @@ function resetPos() { location.reload(); }
 
 
 
+function applyFxDirect(sel, fx) {
+  var el = document.querySelector(sel);
+  if(!el) return;
+  if(fx === 'clear') {
+    el.style.textShadow = '';
+    el.style.backgroundImage = 'none';
+    el.style.webkitBackgroundClip = 'unset';
+    el.style.backgroundClip = 'unset';
+    el.style.webkitTextFillColor = 'unset';
+    el.style.color = el.getAttribute('data-color') || '';
+    el.style.webkitTextStroke = '0px';
+    return;
+  }
+  if(fx === 'shadow-glow') {
+    el.style.textShadow = '0 0 20px rgba(201,168,76,1), 0 0 40px rgba(201,168,76,0.7), 0 0 80px rgba(201,168,76,0.4)';
+  } else if(fx === 'shadow-soft') {
+    el.style.textShadow = '2px 2px 8px rgba(0,0,0,0.8)';
+  } else if(fx === 'grad-gold') {
+    el.style.backgroundImage = 'linear-gradient(180deg, #fffbe0 0%, #e8c96a 30%, #C9A84C 60%, #7a5a10 100%)';
+    el.style.webkitBackgroundClip = 'text';
+    el.style.backgroundClip = 'text';
+    el.style.webkitTextFillColor = 'transparent';
+    el.style.color = 'transparent';
+  } else if(fx === 'shadow-hard') {
+    el.style.textShadow = '4px 4px 0px #000';
+  } else if(fx === 'glow-white') {
+    el.style.textShadow = '0 0 8px #fff, 0 0 20px #fff, 0 0 50px #fff';
+  } else if(fx === 'grad-fire') {
+    el.style.backgroundImage = 'linear-gradient(180deg, #ffffff 0%, #ffee55 25%, #ff8800 60%, #cc1100 100%)';
+    el.style.webkitBackgroundClip = 'text';
+    el.style.backgroundClip = 'text';
+    el.style.webkitTextFillColor = 'transparent';
+    el.style.color = 'transparent';
+  }
+}
+
 function togglePanel() {
   document.getElementById('editPanel').classList.toggle('hidden');
 }
@@ -1069,7 +1105,10 @@ function portadaWSConnect(){
       else if(action==='line_bottom'){ toggleLine('.line-bottom'); }
       else if(action==='divider'){ toggleLine('.divider'); }
       // Logo
-      else if(action==='logo_toggle'){ toggleLogo && toggleLogo(); }
+      else if(action==='logo_toggle'){
+        var lw=qel('.logo-wrapper');
+        if(lw) lw.style.display=(lw.style.display==='none')?'':'none';
+      }
       else if(action==='logo_up'){ var lw=qel('.logo-wrapper'); if(lw){ var w=parseInt(lw.style.width)||400; lw.style.width=Math.min(900,w+30)+'px'; } }
       else if(action==='logo_down'){ var lw=qel('.logo-wrapper'); if(lw){ var w=parseInt(lw.style.width)||400; lw.style.width=Math.max(100,w-30)+'px'; } }
       // Dragón
@@ -1092,6 +1131,9 @@ function portadaWSConnect(){
         var vis=cs.length&&cs[0].style.display!=='none';
         cs.forEach(function(c){ c.style.display=vis?'none':''; });
       }
+      else if(action==='panel_toggle'){
+        togglePanel();
+      }
       // Colores de texto
       else if(action.indexOf('col_sesion:')===0){ changeColor('.session-number', action.substring(11)); }
       else if(action.indexOf('col_titulo:')===0){ changeColor('.session-title',  action.substring(11)); }
@@ -1102,61 +1144,13 @@ function portadaWSConnect(){
       // Reset posición
       else if(action==='reset_pos'){ location.reload(); }
       // Efectos de texto
-      else if(action.indexOf('fx_sesion:')===0){
-        lastClickedText='.session-number';
-        var fx=action.substring(10);
-        if(fx==='clear') clearFx(); else applyFx(fx);
+if(action.indexOf('fx_sesion:')===0){
+        applyFxDirect('.session-number', action.substring(10));
       }
       else if(action.indexOf('fx_titulo:')===0){
-        lastClickedText='.session-title';
-        var fx=action.substring(10);
-        if(fx==='clear') clearFx(); else applyFx(fx);
+        applyFxDirect('.session-title', action.substring(10));
       }
       else if(action.indexOf('fx_sub:')===0){
-        lastClickedText='.session-sub';
-        var fx=action.substring(7);
-        if(fx==='clear') clearFx(); else applyFx(fx);
+        applyFxDirect('.session-sub', action.substring(7));
       }
-    } catch(err){ console.error(err); }
-  };
-  portadaWS.onclose = function(){ portadaWSTimer = setTimeout(portadaWSConnect, 4000); };
-  portadaWS.onerror = function(){ try{portadaWS.close();}catch(e){} };
-}
-
-function togglePortadaQR(){
-  var panel = document.getElementById('portadaQRPanel');
-  if(!panel) return;
-  if(panel.style.display==='block'){ panel.style.display='none'; return; }
-  var url = window.location.origin + '/jpestudio/remote-portada.html?s='+portadaSessionId;
-  document.getElementById('portadaQRUrl').textContent = url;
-  var div = document.getElementById('portadaQRDiv');
-  div.innerHTML = '';
-  // Cargar QRCode.js dinámicamente si no está
-  function generarQR(){
-    if(typeof QRCode !== 'undefined'){
-      new QRCode(div,{text:url,width:180,height:180,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
-    } else {
-      // Fallback: mostrar URL como texto
-      div.innerHTML = '<div style="color:#fff;font-size:11px;padding:8px;word-break:break-all;max-width:180px;">'+url+'</div>';
-    }
-  }
-  if(typeof QRCode === 'undefined'){
-    var s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
-    s.onload = function(){ generarQR(); };
-    document.head.appendChild(s);
-  } else {
-    generarQR();
-  }
-  panel.style.display='block';
-}
-
-// Tecla Q en portada modo presentar
-document.addEventListener('keydown', function(e){
-  if((e.key==='q'||e.key==='Q') && portadaSessionId){
-    togglePortadaQR();
-  }
-});
-</script>
-</body>
-</html>
+      else </html>
