@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Control Portada — JP Estudio</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none;}
+button{touch-action:manipulation;}
+:root{
+  --gold:#C9A84C; --gold2:#a07a2a;
+  --guinda:#6B1020; --guinda2:#4a0b16;
+  --bg:#f5f0e8; --bg2:#fff; --bg3:#faf6ee;
+  --text:#1a0808; --text2:#5a3a3a; --border:#e0d0b0;
+}
+html,body{width:100%;min-height:100vh;background:var(--bg);color:var(--text);font-family:Arial,sans-serif;}
+
+.header{
+  background:linear-gradient(135deg,var(--guinda2),var(--guinda));
+  border-bottom:3px solid var(--gold);
+  padding:12px 16px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(107,16,32,0.3);
+}
+.h-logo{font-size:18px;font-weight:900;color:var(--gold);letter-spacing:3px;}
+.h-sub{font-size:10px;color:rgba(201,168,76,0.6);margin-top:2px;letter-spacing:1px;}
+.h-badge{background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.3);border-radius:20px;padding:4px 10px;font-size:10px;color:var(--gold);font-weight:700;letter-spacing:1px;}
+
+.status-bar{display:flex;align-items:center;justify-content:space-between;padding:7px 14px;background:var(--bg2);border-bottom:2px solid var(--border);}
+.status-pill{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;}
+.status-pill.connecting{background:#fff3cd;color:#856404;border:1px solid #ffc107;}
+.status-pill.connected{background:#d1e7dd;color:#0a3622;border:1px solid #4caf50;}
+.status-pill.error{background:#f8d7da;color:#58151c;border:1px solid #dc3545;}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
+.dot.pulse{animation:p 1s infinite;}
+@keyframes p{0%,100%{opacity:1}50%{opacity:0.2}}
+
+/* TABS */
+.tabs{display:flex;background:var(--bg2);border-bottom:2px solid var(--border);overflow-x:auto;}
+.tab{flex:1;padding:10px 4px;border:none;background:none;font-size:10px;font-weight:800;letter-spacing:1px;color:var(--text2);cursor:pointer;white-space:nowrap;border-bottom:3px solid transparent;transition:all 0.15s;}
+.tab.active{color:var(--guinda);border-bottom-color:var(--guinda);}
+.tab:active{background:var(--bg3);}
+
+/* PANELS */
+.panel{display:none;padding:12px;flex-direction:column;gap:10px;max-width:420px;margin:0 auto;}
+.panel.active{display:flex;}
+
+.sec{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,0.05);}
+.sec-label{font-size:9px;letter-spacing:3px;color:var(--gold2);font-weight:900;text-transform:uppercase;border-bottom:2px solid var(--border);padding-bottom:6px;margin-bottom:10px;}
+
+/* FONDOS */
+.fondo-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+.fb{aspect-ratio:1;border-radius:10px;cursor:pointer;border:2px solid transparent;box-shadow:0 1px 4px rgba(0,0,0,0.15);transition:all 0.12s;}
+.fb:active{transform:scale(0.88);}
+.fb.active{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,0.4);}
+.fb.light{border-color:var(--border);}
+
+/* BOTONES TOGGLE */
+.tog-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.tog-btn{padding:14px 8px;border:1px solid var(--border);border-radius:12px;background:var(--bg3);font-size:20px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;transition:all 0.12s;}
+.tog-btn span{font-size:9px;letter-spacing:1px;color:var(--text2);font-weight:700;}
+.tog-btn:active{background:var(--guinda);border-color:var(--guinda);}
+.tog-btn:active span{color:var(--gold);}
+.tog-btn.on{background:linear-gradient(135deg,var(--guinda),var(--guinda2));border-color:var(--guinda);}
+.tog-btn.on span{color:var(--gold);}
+
+/* TEXTO CONTROLES */
+.txt-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.txt-label{font-size:10px;font-weight:700;color:var(--text2);min-width:60px;letter-spacing:1px;}
+.sz-btn{width:40px;height:40px;border:1px solid var(--border);border-radius:10px;background:var(--bg3);font-size:18px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--guinda);flex-shrink:0;transition:all 0.12s;}
+.sz-btn:active{background:var(--guinda);color:var(--gold);}
+.txt-input{flex:1;border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px;background:var(--bg2);color:var(--text);}
+
+/* COLORES TEXTO */
+.col-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.col-label{font-size:10px;font-weight:700;color:var(--text2);min-width:60px;}
+.col-inp{width:44px;height:36px;border:none;border-radius:8px;cursor:pointer;border:1px solid var(--border);}
+
+/* LOGO */
+.logo-row{display:flex;gap:8px;}
+.logo-btn{flex:1;padding:14px 4px;border:1px solid var(--border);border-radius:12px;background:var(--bg3);font-size:18px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:all 0.12s;}
+.logo-btn span{font-size:9px;letter-spacing:1px;color:var(--text2);font-weight:700;}
+.logo-btn:active{background:var(--guinda);color:var(--gold);}
+.logo-btn:active span{color:var(--gold);}
+.logo-btn.danger{border-color:var(--guinda);color:var(--guinda);}
+
+/* DRAGÓN */
+.dragon-row{display:flex;align-items:center;gap:10px;}
+.d-btn{flex:1;padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--bg3);font-size:22px;cursor:pointer;text-align:center;transition:all 0.12s;}
+.d-btn:active{background:var(--guinda);border-color:var(--guinda);}
+.d-label{font-size:11px;font-weight:700;color:var(--text2);text-align:center;min-width:50px;}
+
+.footer{padding:16px;text-align:center;color:var(--border);font-size:10px;letter-spacing:2px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="h-logo">JP ESTUDIO</div>
+    <div class="h-sub" id="sessionLabel">Portada Control</div>
+  </div>
+  <div class="h-badge">🎬 PORTADA</div>
+</div>
+
+<div class="status-bar">
+  <div class="status-pill connecting" id="statusPill">
+    <div class="dot pulse" id="statusDot"></div>
+    <span id="statusText">Conectando...</span>
+  </div>
+  <span style="font-size:10px;color:var(--text2);" id="screenStatus">📺 Esperando...</span>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="showTab('fondo')">🎨 FONDO</button>
+  <button class="tab" onclick="showTab('texto')">✏️ TEXTO</button>
+  <button class="tab" onclick="showTab('logo')">🏛 LOGO</button>
+  <button class="tab" onclick="showTab('efecto')">✨ EFECTO</button>
+  <button class="tab" onclick="showTab('mas')">⚙️ MÁS</button>
+</div>
+
+<!-- PANEL FONDO -->
+<div class="panel active" id="tab-fondo">
+  <div class="sec">
+    <div class="sec-label">🎨 Color de Fondo</div>
+    <div class="fondo-grid" id="fondoGrid"></div>
+  </div>
+  <div class="sec">
+    <div class="sec-label">📐 Elementos Visibles</div>
+    <div class="tog-grid">
+      <button class="tog-btn" id="tog-lt" onclick="sendToggle('line_top','tog-lt')">〰️<span>LÍNEA SUP</span></button>
+      <button class="tog-btn" id="tog-lb" onclick="sendToggle('line_bottom','tog-lb')">〰️<span>LÍNEA INF</span></button>
+      <button class="tog-btn" id="tog-dv" onclick="sendToggle('divider','tog-dv')">—<span>DIVISOR</span></button>
+      <button class="tog-btn" id="tog-co" onclick="sendToggle('corners_toggle','tog-co')">⌐<span>ESQUINAS</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL TEXTO -->
+<div class="panel" id="tab-texto">
+  <div class="sec">
+    <div class="sec-label">📝 Sesión (Arriba)</div>
+    <div class="txt-row">
+      <input class="txt-input" id="inp-sesion" placeholder="Décima Cuarta Sesión..." onchange="send('txt_sesion:'+this.value)">
+    </div>
+    <div class="txt-row">
+      <span class="txt-label">TAMAÑO</span>
+      <button class="sz-btn" onclick="send('sz_sesion_down')">−</button>
+      <button class="sz-btn" onclick="send('sz_sesion_up')">+</button>
+    </div>
+    <div class="col-row">
+      <span class="col-label">COLOR</span>
+      <input class="col-inp" type="color" value="#C9A84C" onchange="send('col_sesion:'+this.value)">
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-label">📝 Título (Centro)</div>
+    <div class="txt-row">
+      <input class="txt-input" id="inp-titulo" placeholder="Comité de Adquisiciones" onchange="send('txt_titulo:'+this.value)">
+    </div>
+    <div class="txt-row">
+      <span class="txt-label">TAMAÑO</span>
+      <button class="sz-btn" onclick="send('sz_titulo_down')">−</button>
+      <button class="sz-btn" onclick="send('sz_titulo_up')">+</button>
+    </div>
+    <div class="col-row">
+      <span class="col-label">COLOR</span>
+      <input class="col-inp" type="color" value="#ffffff" onchange="send('col_titulo:'+this.value)">
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-label">📝 Subtítulo (Abajo)</div>
+    <div class="txt-row">
+      <input class="txt-input" id="inp-sub" placeholder="Sistema Integral..." onchange="send('txt_sub:'+this.value)">
+    </div>
+    <div class="txt-row">
+      <span class="txt-label">TAMAÑO</span>
+      <button class="sz-btn" onclick="send('sz_sub_down')">−</button>
+      <button class="sz-btn" onclick="send('sz_sub_up')">+</button>
+    </div>
+    <div class="col-row">
+      <span class="col-label">COLOR</span>
+      <input class="col-inp" type="color" value="#b0a0a0" onchange="send('col_sub:'+this.value)">
+    </div>
+  </div>
+</div>
+
+<!-- PANEL LOGO -->
+<div class="panel" id="tab-logo">
+  <div class="sec">
+    <div class="sec-label">🏛 Tamaño del Logo</div>
+    <div class="logo-row">
+      <button class="logo-btn" onclick="send('logo_down')">◀<span>MÁS CHICO</span></button>
+      <button class="logo-btn" onclick="send('logo_up')">▶<span>MÁS GRANDE</span></button>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-label">👁 Visibilidad</div>
+    <div class="logo-row">
+      <button class="logo-btn" onclick="send('logo_toggle')">👁<span>MOSTRAR/OCULTAR</span></button>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-label">🐉 Dragón / Marca de Agua</div>
+    <div class="dragon-row">
+      <button class="d-btn" onclick="send('dragon_down')">🔅</button>
+      <span class="d-label">OPACIDAD</span>
+      <button class="d-btn" onclick="send('dragon_up')">🔆</button>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL EFECTOS -->
+<div class="panel" id="tab-efecto">
+  <div class="sec">
+    <div class="sec-label">✨ Efecto — Sesión</div>
+    <div class="tog-grid">
+      <button class="tog-btn" onclick="send('fx_sesion:shadow-glow')">✨<span>GLOW GOLD</span></button>
+      <button class="tog-btn" onclick="send('fx_sesion:shadow-soft')">🌫<span>SOMBRA</span></button>
+      <button class="tog-btn" onclick="send('fx_sesion:grad-gold')">🌅<span>DEGRADADO</span></button>
+      <button class="tog-btn" onclick="send('fx_sesion:clear')">✕<span>LIMPIAR</span></button>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-label">✨ Efecto — Título</div>
+    <div class="tog-grid">
+      <button class="tog-btn" onclick="send('fx_titulo:shadow-glow')">✨<span>GLOW GOLD</span></button>
+      <button class="tog-btn" onclick="send('fx_titulo:shadow-soft')">🌫<span>SOMBRA</span></button>
+      <button class="tog-btn" onclick="send('fx_titulo:grad-gold')">🌅<span>DEGRADADO</span></button>
+      <button class="tog-btn" onclick="send('fx_titulo:clear')">✕<span>LIMPIAR</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL MÁS -->
+<div class="panel" id="tab-mas">
+  <div class="sec">
+    <div class="sec-label">⚙️ Más Opciones</div>
+    <div class="tog-grid">
+      <button class="tog-btn" onclick="send('reset_pos')">↺<span>RESET POSICIÓN</span></button>
+      <button class="tog-btn" onclick="send('corners_toggle')">⌐<span>ESQUINAS</span></button>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-label">🔆 Líneas — Color</div>
+    <div class="col-row">
+      <span class="col-label">LÍNEAS</span>
+      <input class="col-inp" type="color" value="#C9A84C" onchange="send('line_color:'+this.value)">
+    </div>
+    <div class="col-row" style="margin-top:8px;">
+      <span class="col-label">ESQUINAS</span>
+      <input class="col-inp" type="color" value="#C9A84C" onchange="send('corner_color:'+this.value)">
+    </div>
+  </div>
+</div>
+
+<div class="footer">JP ESTUDIO • PORTADA • SITT</div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const sessionId = params.get('s') || 'default';
+const WS_URL = 'wss://jpestudio-api.onrender.com/ws';
+
+document.getElementById('sessionLabel').textContent = 'Sesión: ' + sessionId;
+
+let ws = null, reconnTimer = null, reconnCount = 0;
+
+// Fondos
+const fondos = [
+  {c:'#6B1020'},{c:'#000'},{c:'#1a1a1a'},{c:'#1A4A6B'},{c:'#1B4D3E'},
+  {c:'#500e18'},{c:'#2a0a3a'},{c:'#3a2500'},{c:'#0d0d2a'},{c:'#fff',light:true}
+];
+const grid = document.getElementById('fondoGrid');
+fondos.forEach(function(f,i){
+  const b=document.createElement('button');
+  b.className='fb'+(f.light?' light':'');
+  b.id='fb'+i; b.style.background=f.c;
+  b.onclick=function(){ send('bg:'+f.c); setActiveFondo(i); };
+  grid.appendChild(b);
+});
+function setActiveFondo(i){
+  document.querySelectorAll('.fb').forEach(b=>b.classList.remove('active'));
+  const b=document.getElementById('fb'+i); if(b) b.classList.add('active');
+}
+
+// Tabs
+function showTab(name){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// Toggle con estado visual
+function sendToggle(action, btnId){
+  send(action);
+  const btn = document.getElementById(btnId);
+  if(btn) btn.classList.toggle('on');
+}
+
+// WS
+function connect(){
+  try{ if(ws) ws.close(); }catch(e){}
+  ws = new WebSocket(WS_URL+'?session='+sessionId+'&role=remote');
+  ws.onopen=function(){ reconnCount=0; setStatus('connected','🟢 Conectado'); clearTimeout(reconnTimer); };
+  ws.onmessage=function(e){
+    try{
+      const msg=JSON.parse(e.data);
+      if(msg.type==='connected'||msg.type==='remote_connected')
+        document.getElementById('screenStatus').textContent='🎬 Pantalla ✓';
+      if(msg.type==='screen_disconnected')
+        document.getElementById('screenStatus').textContent='🎬 Sin pantalla';
+    }catch(err){}
+  };
+  ws.onclose=function(){
+    reconnCount++;
+    setStatus('connecting', reconnCount>3?'⚠️ Servidor dormido':'⏳ Reconectando...');
+    reconnTimer=setTimeout(connect, reconnCount>3?8000:3000);
+  };
+  ws.onerror=function(){ try{ws.close();}catch(e){} };
+}
+
+function setStatus(type,text){
+  const p=document.getElementById('statusPill');
+  const d=document.getElementById('statusDot');
+  p.className='status-pill '+type;
+  d.className='dot'+(type==='connecting'?' pulse':'');
+  document.getElementById('statusText').textContent=text;
+}
+
+function send(action){
+  if(navigator.vibrate) navigator.vibrate(20);
+  if(ws && ws.readyState===1){
+    ws.send(JSON.stringify({action:action}));
+  } else {
+    connect();
+    let tries=0;
+    const t=setInterval(function(){
+      tries++;
+      if(ws && ws.readyState===1){ ws.send(JSON.stringify({action:action})); clearInterval(t); }
+      if(tries>15) clearInterval(t);
+    },300);
+  }
+}
+
+connect();
+</script>
+</body>
+</html>
