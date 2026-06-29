@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Control Remoto — JP Estudio</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+button{touch-action:manipulation;user-select:none;-webkit-user-select:none;}
 :root{
   --gold:#C9A84C;
   --gold2:#a07a2a;
@@ -349,21 +350,37 @@ function setStatus(type, text){
 }
 
 function send(action){
-  if(!ws || ws.readyState !== 1){
-    setStatus('error','Sin conexión');
-    setTimeout(function(){ connect(); }, 500);
-    return;
-  }
-  ws.send(JSON.stringify({action: action, speed: speed}));
+  // Feedback inmediato
   if(action === 'toggle'){ playing = !playing; updateUI(); }
-  if(navigator.vibrate) navigator.vibrate(25);
+  if(navigator.vibrate) navigator.vibrate(20);
+
+  if(ws && ws.readyState === 1){
+    ws.send(JSON.stringify({action: action, speed: speed}));
+  } else {
+    // Reconectar y reenviar cuando esté listo
+    setStatus('connecting','↺ Reconectando...');
+    connect();
+    var tries = 0;
+    var retry = setInterval(function(){
+      tries++;
+      if(ws && ws.readyState === 1){
+        ws.send(JSON.stringify({action: action, speed: speed}));
+        clearInterval(retry);
+      }
+      if(tries > 15) clearInterval(retry);
+    }, 300);
+  }
 }
 
 function changeSpeed(delta){
   speed = Math.max(1, Math.min(10, speed + delta));
   document.getElementById('speedDisplay').textContent = speed;
   document.getElementById('speedFill').style.width = (speed*10)+'%';
-  send('speed:'+speed);
+  // Enviar directo sin pasar por send() para evitar toggle de playing
+  if(ws && ws.readyState === 1){
+    ws.send(JSON.stringify({action: 'speed:'+speed, speed: speed}));
+    if(navigator.vibrate) navigator.vibrate(15);
+  }
 }
 
 function updateUI(){
