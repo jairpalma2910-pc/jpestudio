@@ -723,54 +723,84 @@ function togglePanel() {
   document.getElementById('editPanel').classList.toggle('hidden');
 }
 
-// ══ MODO PRESENTAR: drag de elementos ══
+// ══ MODO PRESENTAR ══
 var presentMode = false;
+var pDrag = null, pOX = 0, pOY = 0;
+var bgPalette = ['#6B1020','#500e18','#8B1A2A','#000','#1a1a1a','#1A4A6B','#1B4D3E','#2a0a3a','#fff'];
+var bgIdx = 0;
 
 function initPresentMode(){
   presentMode = true;
-  // Activar drag en modo presentar para logo y textos
-  // Reusar el sistema de drag del editor (var dragging, offX, offY)
-  // pero sin necesitar editMode=true
-  var dragSels = ['.logo-wrapper', '.session-number', '.session-title', '.session-sub'];
+
+  // Detectar fondo actual en paleta
+  var curBg = (document.querySelector('.bg')||{}).style&&document.querySelector('.bg').style.background || document.body.style.background || '';
+  var found = bgPalette.indexOf(curBg);
+  if(found >= 0) bgIdx = found;
+
+  // Drag independiente — NO usa las vars dragging/offX/offY del editor
+  var dragSels = ['.logo-wrapper','.session-number','.session-title','.session-sub'];
   dragSels.forEach(function(sel){
     var el = document.querySelector(sel);
     if(!el) return;
-    // Asegurar posición fixed
-    if(!el.style.left){
+    // Fijar posición actual si no está fija
+    if(!el.style.left || el.style.left === ''){
       var r = el.getBoundingClientRect();
       el.style.position = 'fixed';
       el.style.left = r.left + 'px';
-      el.style.top = r.top + 'px';
+      el.style.top  = r.top  + 'px';
+      el.style.margin = '0';
     }
     el.style.cursor = 'grab';
     el.style.userSelect = 'none';
+
     el.addEventListener('mousedown', function(e){
-      dragging = el;
+      pDrag = el;
       var r = el.getBoundingClientRect();
-      offX = e.clientX - r.left;
-      offY = e.clientY - r.top;
+      pOX = e.clientX - r.left;
+      pOY = e.clientY - r.top;
       el.style.cursor = 'grabbing';
-      el.style.zIndex = '9990';
+      el.style.zIndex = '500';
       e.preventDefault();
       e.stopPropagation();
     });
-    // Touch support
     el.addEventListener('touchstart', function(e){
-      dragging = el;
+      pDrag = el;
       var r = el.getBoundingClientRect();
-      offX = e.touches[0].clientX - r.left;
-      offY = e.touches[0].clientY - r.top;
-      el.style.zIndex = '9990';
-    }, {passive:true});
+      pOX = e.touches[0].clientX - r.left;
+      pOY = e.touches[0].clientY - r.top;
+      el.style.zIndex = '500';
+      e.stopPropagation();
+    }, {passive:false});
   });
 
+  document.addEventListener('mousemove', function(e){
+    if(!pDrag) return;
+    pDrag.style.left = (e.clientX - pOX) + 'px';
+    pDrag.style.top  = (e.clientY - pOY) + 'px';
+  });
+  document.addEventListener('mouseup', function(){
+    if(pDrag){ pDrag.style.cursor='grab'; pDrag.style.zIndex='10'; pDrag=null; }
+  });
   document.addEventListener('touchmove', function(e){
-    if(!dragging || !presentMode) return;
-    dragging.style.left = (e.touches[0].clientX - offX) + 'px';
-    dragging.style.top  = (e.touches[0].clientY - offY) + 'px';
-  }, {passive:true});
+    if(!pDrag) return;
+    pDrag.style.left = (e.touches[0].clientX - pOX) + 'px';
+    pDrag.style.top  = (e.touches[0].clientY - pOY) + 'px';
+    e.preventDefault();
+  }, {passive:false});
   document.addEventListener('touchend', function(){
-    if(dragging){ dragging.style.cursor='grab'; dragging.style.zIndex='10'; dragging=null; }
+    if(pDrag){ pDrag.style.cursor='grab'; pDrag.style.zIndex='10'; pDrag=null; }
+  });
+
+  // Flechas para color de fondo
+  document.addEventListener('keydown', function(e){
+    if(!presentMode) return;
+    if(e.code==='ArrowLeft'){
+      bgIdx=(bgIdx-1+bgPalette.length)%bgPalette.length;
+      changeBg(bgPalette[bgIdx]);
+    } else if(e.code==='ArrowRight'){
+      bgIdx=(bgIdx+1)%bgPalette.length;
+      changeBg(bgPalette[bgIdx]);
+    }
   });
 }
 </script>
