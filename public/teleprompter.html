@@ -724,7 +724,7 @@ function toggleQR(){
   var q=document.getElementById('qrPanel');
   if(q.style.display==='block'){ q.style.display='none'; return; }
   // URL del control remoto
-  var url = window.location.origin + '/jpestudio/remote.html';
+  var url = window.location.origin + '/jpestudio/remote.html?s=' + wsSessionId;
   document.getElementById('qrUrl').textContent = url;
   // Generar QR — usar new QRCode() (API de objeto, más compatible)
   var canvas = document.getElementById('qrCanvas');
@@ -1246,6 +1246,56 @@ function cancelModal(id){
   var el=document.getElementById(id);
   if(el) el.classList.remove('open');
 }
+
+// ══════════════════════════════════════════
+// WEBSOCKET — CONTROL REMOTO
+// ══════════════════════════════════════════
+var WS_URL = 'wss://jpestudio-api.onrender.com/ws';
+var wsSessionId = Math.random().toString(36).substring(2, 8).toUpperCase();
+var wsConn = null;
+var wsReconnectTimer = null;
+
+function wsConnect(){
+  try {
+    wsConn = new WebSocket(WS_URL + '?session=' + wsSessionId + '&role=screen');
+    wsConn.onopen = function(){
+      console.log('[WS] Screen conectada, sesión:', wsSessionId);
+      clearTimeout(wsReconnectTimer);
+    };
+    wsConn.onmessage = function(e){
+      try {
+        var msg = JSON.parse(e.data);
+        if(msg.type === 'remote_connected'){
+          showZoomHint('📱 Control remoto conectado');
+        }
+        // Comandos del remote — soportar ambos formatos
+        var action = msg.cmd || msg.action || '';
+        if(action === 'toggle') togglePlay();
+        else if(action === 'up') goUp();
+        else if(action === 'down') goDown();
+        else if(action === 'stop') stopFn();
+        else if(action === 'speed_up' || action === 'faster'){ spd=Math.min(10,spd+1); var sl=document.querySelector('#bar input[type=range]'); if(sl) sl.value=spd; document.getElementById('spdv').textContent=spd; wsSendState(); }
+        else if(action === 'speed_down' || action === 'slower'){ spd=Math.max(1,spd-1); var sl=document.querySelector('#bar input[type=range]'); if(sl) sl.value=spd; document.getElementById('spdv').textContent=spd; wsSendState(); }
+      } catch(err){}
+    };
+    wsConn.onclose = function(){
+      wsReconnectTimer = setTimeout(wsConnect, 3000);
+    };
+    wsConn.onerror = function(){ wsConn.close(); };
+  } catch(err){ wsReconnectTimer = setTimeout(wsConnect, 3000); }
+}
+
+// Enviar estado al remote
+function wsSendState(){
+  if(!wsConn || wsConn.readyState !== 1) return;
+  wsConn.send(JSON.stringify({ type:'state', playing:playing, speed:spd }));
+}
+
+// Conectar al cargar
+wsConnect();
+// Enviar estado cuando cambia
+var _origToggle = togglePlay;
+togglePlay = function(){ _origToggle(); setTimeout(wsSendState, 100); };
 </script>
 
 <!-- Datos del guión persistentes -->
