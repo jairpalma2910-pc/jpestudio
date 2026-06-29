@@ -1132,7 +1132,8 @@ function portadaWSConnect(){
         cs.forEach(function(c){ c.style.display=vis?'none':''; });
       }
       else if(action==='panel_toggle'){
-        togglePanel();
+        var tbBtn = document.getElementById('toggleBarBtn');
+        if(tbBtn) tbBtn.style.display = (tbBtn.style.display==='none') ? 'block' : 'none';
       }
       // Colores de texto
       else if(action.indexOf('col_sesion:')===0){ changeColor('.session-number', action.substring(11)); }
