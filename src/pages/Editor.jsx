@@ -32,7 +32,8 @@ export default function Editor() {
         const estado = e.data.estado
         estadoPortadaRef.current = estado
         const currentId = idRef.current
-        if (!currentId) return
+        console.log('[REACT] save_portada recibido. id:', currentId, 'nombre:', nombreRef.current)
+        if (!currentId) { console.warn('[REACT] Sin ID - no se guarda'); return }
         try {
           await api.put(`/api/projects/${currentId}`, {
             nombre: nombreRef.current,
