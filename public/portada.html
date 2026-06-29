@@ -416,8 +416,10 @@ window.addEventListener('load', function() {
 
   // Aplicar estado pendiente si llegó antes de que cargara
   if (window.__pendingEstado) {
-    applyEstado(window.__pendingEstado);
+    var _pe = window.__pendingEstado;
     window.__pendingEstado = null;
+    // Pequeño delay para que el layout se estabilice
+    setTimeout(function(){ applyEstado(_pe); }, 150);
   }
   // Avisar al padre que la portada está lista para recibir estado
   try { window.parent.postMessage({ type: 'portada_ready' }, '*'); } catch(e) {}
@@ -975,16 +977,28 @@ function applyEstado(st) {
   applyFxObj(sn,  st.fxSesion);
   applyFxObj(st2, st.fxTitulo);
   applyFxObj(ss,  st.fxSub);
-  // Posiciones
-  if(st.positions) {
+  // Posiciones — primero fijar todos con getBoundingClientRect, luego aplicar guardadas
+  if(st.positions && Object.keys(st.positions).length > 0) {
+    // Paso 1: fijar TODOS los elementos con su posición actual en pantalla
+    var allSels=['.session-number','.logo-wrapper','.divider','.line-bottom','.session-title','.session-sub'];
+    allSels.forEach(function(sel){
+      var el=document.querySelector(sel);
+      if(!el) return;
+      var r=el.getBoundingClientRect();
+      el.style.position='fixed';
+      el.style.left=r.left+'px';
+      el.style.top=r.top+'px';
+      el.style.width=r.width+'px';
+      el.style.margin='0';
+    });
+    // Paso 2: aplicar posiciones guardadas encima
     Object.keys(st.positions).forEach(function(sel){
       var el=document.querySelector(sel);
       if(!el) return;
       var pos=st.positions[sel];
-      if(pos.left)  { el.style.left=pos.left;  el.style.position='fixed'; }
-      if(pos.top)   { el.style.top=pos.top;    el.style.position='fixed'; }
-      if(pos.width)   el.style.width=pos.width;
-      el.style.margin='0';
+      if(pos.left)  el.style.left=pos.left;
+      if(pos.top)   el.style.top=pos.top;
+      if(pos.width) el.style.width=pos.width;
     });
   }
 }
@@ -1015,7 +1029,7 @@ window.addEventListener('message', function(e) {
   if (e.data && e.data.type === 'load_portada') {
     var estado = e.data.estado;
     if (document.readyState === 'complete') {
-      applyEstado(estado);
+      setTimeout(function(){ applyEstado(estado); }, 150);
     } else {
       // Guardar el estado pendiente y aplicar cuando cargue
       window.__pendingEstado = estado;
