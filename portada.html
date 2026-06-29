@@ -811,71 +811,176 @@ function qel(sel){ return document.querySelector(sel); }
 function qv(sel,prop){ var el=qel(sel); return el?(el.style[prop]||getComputedStyle(el)[prop]||''):''; }
 
 function getEstado() {
-  // Leer textos del DOM visual (no de los inputs)
   var sn=qel('.session-number'), st=qel('.session-title'), ss=qel('.session-sub');
   var bg=qel('.bg');
-  // Posiciones de todos los draggables
+  var lt=qel('.line-top'), lb=qel('.line-bottom'), dv=qel('.divider');
+  var corners=document.querySelectorAll('.corner');
+  var logoImg=qel('.logo-wrapper img');
+  var logoWrap=qel('.logo-wrapper');
+
+  // Posiciones draggables
   var poss={};
-  var dragsels=['.session-number','.logo-wrapper','.divider','.line-bottom','.session-title','.session-sub'];
-  dragsels.forEach(function(sel){
+  ['.session-number','.logo-wrapper','.divider','.line-bottom','.session-title','.session-sub'].forEach(function(sel){
     var el=qel(sel);
-    if(el && (el.style.left||el.style.top)) poss[sel]={left:el.style.left,top:el.style.top,width:el.style.width};
+    if(el && el.style.position==='fixed') poss[sel]={left:el.style.left,top:el.style.top,width:el.style.width};
   });
+
+  // Logo src — guardar si fue cambiado (no es el base64 original enorme, solo si es diferente al default)
+  var logoSrc = '';
+  if(logoImg) {
+    var src = logoImg.getAttribute('src') || '';
+    // Solo guardar si es una imagen nueva subida (dataURL corta = imagen pequeña)
+    if(src.startsWith('data:') && src.length < 200000) logoSrc = src;
+    else if(!src.startsWith('data:')) logoSrc = src;
+  }
+
   return {
-    txtSesion: sn?sn.textContent.trim():'',
-    txtTitulo: st?st.textContent.trim():'',
-    txtSub:    ss?ss.textContent.trim():'',
-    szSesion:  sn?(sn.style.fontSize||''):'',
-    szTitulo:  st?(st.style.fontSize||''):'',
-    szSub:     ss?(ss.style.fontSize||''):'',
-    colSesion: sn?(sn.style.color||''):'',
-    colTitulo: st?(st.style.color||''):'',
-    colSub:    ss?(ss.style.color||''):'',
-    bg: bg?(bg.style.background||document.body.style.background||''):(document.body.style.background||''),
+    // Textos
+    txtSesion: sn ? sn.textContent.trim() : '',
+    txtTitulo: st ? st.textContent.trim() : '',
+    txtSub:    ss ? ss.textContent.trim() : '',
+    // Tamaños
+    szSesion: sn ? (sn.style.fontSize||'') : '',
+    szTitulo: st ? (st.style.fontSize||'') : '',
+    szSub:    ss ? (ss.style.fontSize||'') : '',
+    // Colores texto
+    colSesion: sn ? (sn.style.color||'') : '',
+    colTitulo: st ? (st.style.color||'') : '',
+    colSub:    ss ? (ss.style.color||'') : '',
+    // Fuentes
+    fontSesion: sn ? (sn.style.fontFamily||'') : '',
+    fontTitulo: st ? (st.style.fontFamily||'') : '',
+    fontSub:    ss ? (ss.style.fontFamily||'') : '',
+    // Fondo
+    bg: bg ? (bg.style.background||document.body.style.background||'') : (document.body.style.background||''),
+    // Líneas
+    lineTopVisible:  lt ? (lt.style.display!=='none') : true,
+    lineTopColor:    lt ? (lt.style.background||'') : '',
+    lineTopOpacity:  lt ? (lt.style.opacity||'') : '',
+    lineBottomVisible: lb ? (lb.style.display!=='none') : true,
+    lineBottomColor:   lb ? (lb.style.background||'') : '',
+    lineBottomOpacity: lb ? (lb.style.opacity||'') : '',
+    dividerVisible:  dv ? (dv.style.display!=='none') : true,
+    // Esquinas
+    cornerColor:   corners.length ? (corners[0].style.borderColor||'') : '',
+    cornerOpacity: corners.length ? (corners[0].style.opacity||'') : '',
+    // Dragón
     dragonOp: (function(){ var el=qel('.dragon1'); return el?(el.style.opacity||'0.22'):'0.22'; })(),
-    logoSize: (function(){ var el=qel('.logo-wrapper'); return el?(el.style.width||''):''; })(),
-    logoOp:   (function(){ var el=qel('.logo-wrapper img'); return el?(el.style.opacity||'1'):'1'; })(),
+    // Logo
+    logoSize:    logoWrap ? (logoWrap.style.width||'') : '',
+    logoOp:      logoImg  ? (logoImg.style.opacity||'1') : '1',
+    logoSrc:     logoSrc,
+    // Efectos texto (textShadow, gradient, stroke)
+    fxSesion: sn ? {
+      shadow: sn.style.textShadow||'',
+      stroke: sn.style.webkitTextStroke||'',
+      bgImg:  sn.style.backgroundImage||'',
+      fill:   sn.style.webkitTextFillColor||'',
+      spacing: sn.style.letterSpacing||'',
+      weight:  sn.style.fontWeight||'',
+      transform: sn.style.textTransform||''
+    } : {},
+    fxTitulo: st ? {
+      shadow: st.style.textShadow||'',
+      stroke: st.style.webkitTextStroke||'',
+      bgImg:  st.style.backgroundImage||'',
+      fill:   st.style.webkitTextFillColor||'',
+      spacing: st.style.letterSpacing||'',
+      weight:  st.style.fontWeight||'',
+      transform: st.style.textTransform||''
+    } : {},
+    fxSub: ss ? {
+      shadow: ss.style.textShadow||'',
+      stroke: ss.style.webkitTextStroke||'',
+      bgImg:  ss.style.backgroundImage||'',
+      fill:   ss.style.webkitTextFillColor||'',
+      spacing: ss.style.letterSpacing||'',
+      weight:  ss.style.fontWeight||'',
+      transform: ss.style.textTransform||''
+    } : {},
+    // Posiciones
     positions: poss
   };
 }
 
-function applyEstado(st) {
-  if (!st) return;
-  console.log('[PORTADA] applyEstado:', JSON.stringify(st).substring(0,150));
-  // Textos
-  if (st.txtSesion) { changeText('.session-number', st.txtSesion); var i1=document.getElementById('txtSesion'); if(i1) i1.value=st.txtSesion; }
-  if (st.txtTitulo) { changeText('.session-title',  st.txtTitulo); var i2=document.getElementById('txtTitulo'); if(i2) i2.value=st.txtTitulo; }
-  if (st.txtSub)    { changeText('.session-sub',    st.txtSub);    var i3=document.getElementById('txtSub');    if(i3) i3.value=st.txtSub; }
-  // Tamaños
-  if (st.szSesion) { var el=qel('.session-number'); if(el) el.style.fontSize=st.szSesion; }
-  if (st.szTitulo) { var el=qel('.session-title');  if(el) el.style.fontSize=st.szTitulo; }
-  if (st.szSub)    { var el=qel('.session-sub');    if(el) el.style.fontSize=st.szSub; }
-  // Colores
-  if (st.colSesion) changeColor('.session-number', st.colSesion);
-  if (st.colTitulo) changeColor('.session-title',  st.colTitulo);
-  if (st.colSub)    changeColor('.session-sub',    st.colSub);
-  // Fondo
-  if (st.bg) changeBg(st.bg);
-  // Dragon
-  if (st.dragonOp !== undefined) {
-    var d=qel('.dragon1'); if(d) d.style.opacity=st.dragonOp;
+function applyFxObj(el, fx) {
+  if(!el || !fx) return;
+  if(fx.shadow)    el.style.textShadow = fx.shadow;
+  if(fx.stroke)    el.style.webkitTextStroke = fx.stroke;
+  if(fx.spacing)   el.style.letterSpacing = fx.spacing;
+  if(fx.weight)    el.style.fontWeight = fx.weight;
+  if(fx.transform) el.style.textTransform = fx.transform;
+  if(fx.bgImg && fx.bgImg !== 'none') {
+    el.style.backgroundImage = fx.bgImg;
+    el.style.webkitBackgroundClip = 'text';
+    el.style.backgroundClip = 'text';
+    el.style.webkitTextFillColor = 'transparent';
+    el.style.color = 'transparent';
   }
-  // Logo wrapper size
-  if (st.logoSize) { var lw=qel('.logo-wrapper'); if(lw) lw.style.width=st.logoSize; }
-  if (st.logoOp)   { var li=qel('.logo-wrapper img'); if(li) li.style.opacity=st.logoOp; }
-  // Posiciones de draggables (usando selectores CSS como keys)
-  if (st.positions) {
+}
+
+function applyEstado(st) {
+  if(!st) return;
+  // Textos
+  if(st.txtSesion) { changeText('.session-number', st.txtSesion); var i1=qel('#txtSesion'); if(i1) i1.value=st.txtSesion; }
+  if(st.txtTitulo) { changeText('.session-title',  st.txtTitulo); var i2=qel('#txtTitulo'); if(i2) i2.value=st.txtTitulo; }
+  if(st.txtSub)    { changeText('.session-sub',    st.txtSub);    var i3=qel('#txtSub');    if(i3) i3.value=st.txtSub; }
+  // Tamaños
+  var sn=qel('.session-number'), st2=qel('.session-title'), ss=qel('.session-sub');
+  if(st.szSesion && sn) sn.style.fontSize = st.szSesion;
+  if(st.szTitulo && st2) st2.style.fontSize = st.szTitulo;
+  if(st.szSub    && ss)  ss.style.fontSize  = st.szSub;
+  // Colores
+  if(st.colSesion) changeColor('.session-number', st.colSesion);
+  if(st.colTitulo) changeColor('.session-title',  st.colTitulo);
+  if(st.colSub)    changeColor('.session-sub',    st.colSub);
+  // Fuentes
+  if(st.fontSesion) { if(sn) sn.style.fontFamily=st.fontSesion; }
+  if(st.fontTitulo) { if(st2) st2.style.fontFamily=st.fontTitulo; }
+  if(st.fontSub)    { if(ss)  ss.style.fontFamily=st.fontSub; }
+  // Fondo
+  if(st.bg) changeBg(st.bg);
+  // Líneas
+  var lt=qel('.line-top'), lb=qel('.line-bottom'), dv=qel('.divider');
+  if(lt) {
+    lt.style.display = st.lineTopVisible===false ? 'none' : '';
+    if(st.lineTopColor) lt.style.background = st.lineTopColor;
+    if(st.lineTopOpacity) lt.style.opacity = st.lineTopOpacity;
+  }
+  if(lb) {
+    lb.style.display = st.lineBottomVisible===false ? 'none' : '';
+    if(st.lineBottomColor) lb.style.background = st.lineBottomColor;
+    if(st.lineBottomOpacity) lb.style.opacity = st.lineBottomOpacity;
+  }
+  if(dv) dv.style.display = st.dividerVisible===false ? 'none' : '';
+  // Esquinas
+  if(st.cornerColor) document.querySelectorAll('.corner').forEach(function(c){ c.style.borderColor=st.cornerColor; });
+  if(st.cornerOpacity) document.querySelectorAll('.corner').forEach(function(c){ c.style.opacity=st.cornerOpacity; });
+  // Dragón
+  if(st.dragonOp) { var d=qel('.dragon1'),d2=qel('.dragon2'); if(d) d.style.opacity=st.dragonOp; if(d2) d2.style.opacity=st.dragonOp; }
+  // Logo
+  var lw=qel('.logo-wrapper'), li=qel('.logo-wrapper img');
+  if(st.logoSize && lw) { lw.style.width=st.logoSize; }
+  if(st.logoOp   && li) li.style.opacity=st.logoOp;
+  if(st.logoSrc  && li && st.logoSrc) li.src=st.logoSrc;
+  // Efectos
+  applyFxObj(sn,  st.fxSesion);
+  applyFxObj(st2, st.fxTitulo);
+  applyFxObj(ss,  st.fxSub);
+  // Posiciones
+  if(st.positions) {
     Object.keys(st.positions).forEach(function(sel){
-      var el = document.querySelector(sel);
-      if (!el) return;
-      var pos = st.positions[sel];
-      if (pos.left) el.style.left  = pos.left;
-      if (pos.top)  el.style.top   = pos.top;
-      if (pos.width) el.style.width = pos.width;
-      el.style.position = 'fixed';
+      var el=document.querySelector(sel);
+      if(!el) return;
+      var pos=st.positions[sel];
+      if(pos.left)  { el.style.left=pos.left;  el.style.position='fixed'; }
+      if(pos.top)   { el.style.top=pos.top;    el.style.position='fixed'; }
+      if(pos.width)   el.style.width=pos.width;
+      el.style.margin='0';
     });
   }
 }
+
 
 function guardarPortada(){
   var estado = getEstado();
