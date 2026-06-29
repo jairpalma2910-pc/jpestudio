@@ -713,6 +713,83 @@ function resetPos() { location.reload(); }
 function togglePanel() {
   document.getElementById('editPanel').classList.toggle('hidden');
 }
+
+// ══ MODO PRESENTAR: controles de teclado ══
+var presentMode = false;
+var bgPalette = ['#6B1020','#500e18','#8B1A2A','#000000','#1a1a1a','#1A4A6B','#1B4D3E','#2a0a3a','#3a2a00','#ffffff'];
+var bgIndex = 0;
+var logoDragActive = false, ldx=0, ldy=0, ldEl=null;
+
+function initPresentMode(){
+  presentMode = true;
+  // Detectar color actual en la paleta
+  var curBg = document.body.style.background || '#6B1020';
+  var found = bgPalette.indexOf(curBg);
+  if(found >= 0) bgIndex = found;
+
+  // Logo arrastrable en presentar
+  var lw = document.querySelector('.logo-wrapper');
+  if(lw){
+    lw.style.cursor = 'grab';
+    lw.addEventListener('mousedown', function(e){
+      ldEl = lw;
+      var r = lw.getBoundingClientRect();
+      ldx = e.clientX - r.left;
+      ldy = e.clientY - r.top;
+      logoDragActive = true;
+      lw.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+  }
+  document.addEventListener('mousemove', function(e){
+    if(!logoDragActive || !ldEl) return;
+    ldEl.style.left = (e.clientX - ldx) + 'px';
+    ldEl.style.top  = (e.clientY - ldy) + 'px';
+    ldEl.style.position = 'fixed';
+  });
+  document.addEventListener('mouseup', function(){
+    if(ldEl) ldEl.style.cursor = 'grab';
+    logoDragActive = false;
+  });
+
+  // Teclado
+  document.addEventListener('keydown', function(e){
+    if(!presentMode) return;
+    // ← → cambiar fondo
+    if(e.code === 'ArrowLeft'){
+      bgIndex = (bgIndex - 1 + bgPalette.length) % bgPalette.length;
+      changeBg(bgPalette[bgIndex]);
+      showHint('Fondo: ' + bgPalette[bgIndex]);
+    } else if(e.code === 'ArrowRight'){
+      bgIndex = (bgIndex + 1) % bgPalette.length;
+      changeBg(bgPalette[bgIndex]);
+      showHint('Fondo: ' + bgPalette[bgIndex]);
+    }
+    // ↑ ↓ cambiar tamaño del logo
+    else if(e.code === 'ArrowUp'){
+      var lw = document.querySelector('.logo-wrapper');
+      if(lw){ var w = parseInt(lw.style.width)||300; var nw=Math.min(800,w+20); lw.style.width=nw+'px'; showHint('Logo: '+nw+'px'); }
+    } else if(e.code === 'ArrowDown'){
+      var lw = document.querySelector('.logo-wrapper');
+      if(lw){ var w = parseInt(lw.style.width)||300; var nw=Math.max(80,w-20); lw.style.width=nw+'px'; showHint('Logo: '+nw+'px'); }
+    }
+  });
+}
+
+var hintTimer = null;
+function showHint(txt){
+  var h = document.getElementById('presentHint');
+  if(!h){
+    h = document.createElement('div');
+    h.id = 'presentHint';
+    h.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:#C9A84C;font-size:18px;font-family:Arial;font-weight:bold;padding:10px 24px;border-radius:8px;z-index:9999;pointer-events:none;transition:opacity 0.3s;';
+    document.body.appendChild(h);
+  }
+  h.textContent = txt;
+  h.style.opacity = '1';
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(function(){ h.style.opacity='0'; }, 1500);
+}
 </script>
 
 <script>
@@ -824,6 +901,7 @@ window.addEventListener('message', function(e) {
   if (e.data === 'present_mode') {
     var ids = ['editPanel','toggleBarBtn','epBtn','portadaSaveBtn'];
     ids.forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display='none'; });
+    initPresentMode();
   }
 });
 </script>
