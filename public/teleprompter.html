@@ -288,6 +288,9 @@ iVBORw0KGgoAAAANSUhEUgAABDgAAAQ4CAYAAADsEGyPAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAAB
 <!-- BOTÓN OPCIONES -->
 <button id="opBtn" onclick="togglePanel()">⚙️ OPCIONES</button>
 
+<!-- BOTÓN FLOTANTE QR (aparece en present_mode) -->
+<button id="qrFloatBtn" onclick="toggleQR()" style="display:none;position:fixed;bottom:70px;right:20px;z-index:200;width:52px;height:52px;border-radius:50%;background:#C9A84C;color:#000;border:none;font-size:22px;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,0.5);">📱</button>
+
 <!-- PANEL OPCIONES -->
 <div id="panel">
   <div id="panelHeader">
@@ -340,14 +343,8 @@ iVBORw0KGgoAAAANSUhEUgAABDgAAAQ4CAYAAADsEGyPAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAAB
     <button class="pg" onclick="applyEfectos()" style="margin-top:8px;">✓ Aplicar efectos</button>
     <button class="pb" onclick="clearEfectos()" style="margin-top:4px;">✕ Quitar todos efectos</button>
 
-    <label style="margin-top:10px;">Color — Presidente</label>
-    <input type="color" id="colPres" value="#C9A84C" oninput="reapplyColors()">
-    <label>Color — Secretaria</label>
-    <input type="color" id="colSec" value="#64b5f6" oninput="reapplyColors()">
-    <label>Color — Administrativa</label>
-    <input type="color" id="colAdm" value="#81c784" oninput="reapplyColors()">
-    <label>Color — Puntos/Secciones</label>
-    <input type="color" id="colPunto" value="#ff8a65" oninput="reapplyColors()">
+    <div id="coloresPersonas" style="margin-top:10px;"></div>
+    <button class="pb" onclick="actualizarColores()" style="margin-top:6px;font-size:11px;">↺ Actualizar desde guión</button>
 
     <h4>MOSTRAR / OCULTAR</h4>
     <button class="pb" onclick="togEl('reloj',this)" id="btnReloj">🕐 Reloj — Mostrar</button>
@@ -666,6 +663,8 @@ document.addEventListener('keydown',function(e){
   else if(e.code==='ArrowLeft'){ e.preventDefault(); spd=Math.max(1,spd-1); var sl=document.querySelector('#bar input[type=range]'); if(sl) sl.value=spd; document.getElementById('spdv').textContent=spd; }
   else if(e.key==='h'||e.key==='H'){ if(barVis) hidebar(); else showBarFn(); }
   else if(e.key==='q'||e.key==='Q'){ toggleQR(); }
+  else if(e.key==='+'||e.key==='='){ zoomTxt(4); }
+  else if(e.key==='-'||e.key==='_'){ zoomTxt(-4); }
 });
 
 // ══════════════════════════════════════════
@@ -673,7 +672,9 @@ document.addEventListener('keydown',function(e){
 // ══════════════════════════════════════════
 function togglePanel(){
   var p=document.getElementById('panel');
-  p.style.display=(p.style.display==='flex')?'none':'flex';
+  var open = p.style.display!=='flex';
+  p.style.display=open?'flex':'none';
+  if(open) actualizarColores();
 }
 function setBg(c){
   window.__BG__=c;
@@ -694,20 +695,61 @@ function togEl(id,btn){ var el=document.getElementById(id); var vis=el.style.dis
 var cronoInt=null,cronoSecs=0;
 function togCrono(btn){ var c=document.getElementById('crono'); var vis=c.style.display==='block'; c.style.display=vis?'none':'block'; if(!vis && !cronoInt) startCrono(); }
 function startCrono(){ cronoInt=setInterval(function(){ cronoSecs++; var h=Math.floor(cronoSecs/3600),m=Math.floor((cronoSecs%3600)/60),s=cronoSecs%60; document.getElementById('cronoTime').textContent=[h,m,s].map(function(x){ return x<10?'0'+x:''+x; }).join(':'); },1000); }
+function zoomTxt(delta){
+  document.querySelectorAll('.texto').forEach(function(el){
+    var cur = parseInt(el.style.fontSize) || 54;
+    var nuevo = Math.max(20, Math.min(120, cur + delta));
+    el.style.fontSize = nuevo + 'px';
+  });
+  // Mostrar indicador
+  var cur = parseInt(document.querySelector('.texto') ? document.querySelector('.texto').style.fontSize : 54) || 54;
+  showZoomHint(cur);
+}
+var zoomHintTimer = null;
+function showZoomHint(sz){
+  var hint = document.getElementById('zoomHint');
+  if(!hint){
+    hint = document.createElement('div');
+    hint.id = 'zoomHint';
+    hint.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.75);color:#C9A84C;font-size:28px;font-family:Arial;font-weight:bold;padding:14px 28px;border-radius:10px;z-index:999;pointer-events:none;transition:opacity 0.3s;';
+    document.body.appendChild(hint);
+  }
+  hint.textContent = 'Texto: ' + sz + 'px';
+  hint.style.opacity = '1';
+  clearTimeout(zoomHintTimer);
+  zoomHintTimer = setTimeout(function(){ hint.style.opacity='0'; }, 1200);
+}
+
 function toggleQR(){
   var q=document.getElementById('qrPanel');
   if(q.style.display==='block'){ q.style.display='none'; return; }
-  // Generar QR con URL del control remoto
+  // URL del control remoto
   var url = window.location.origin + '/jpestudio/remote.html';
   document.getElementById('qrUrl').textContent = url;
-  // Generar QR usando QRCode.js si está disponible, sino mostrar URL
-  if(typeof QRCode !== 'undefined'){
-    var canvas = document.getElementById('qrCanvas');
-    canvas.width=160; canvas.height=160;
-    QRCode.toCanvas(canvas, url, {width:160,margin:1,color:{dark:'#000',light:'#fff'}}, function(){});
+  // Generar QR — usar new QRCode() (API de objeto, más compatible)
+  var canvas = document.getElementById('qrCanvas');
+  canvas.innerHTML = '';
+  canvas.width = 160; canvas.height = 160;
+  // Limpiar contenedor y crear div para QRCode
+  var qrDiv = document.getElementById('qrCodeDiv');
+  if (!qrDiv) {
+    qrDiv = document.createElement('div');
+    qrDiv.id = 'qrCodeDiv';
+    canvas.parentNode.insertBefore(qrDiv, canvas);
+  }
+  qrDiv.innerHTML = '';
+  canvas.style.display = 'none';
+  if (typeof QRCode !== 'undefined') {
+    new QRCode(qrDiv, {
+      text: url,
+      width: 160,
+      height: 160,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
   } else {
-    // Fallback: mostrar link
-    document.getElementById('qrCanvas').style.display='none';
+    qrDiv.innerHTML = '<div style="color:#fff;font-size:11px;padding:8px;word-break:break-all;">' + url + '</div>';
   }
   q.style.display='block';
 }
@@ -779,6 +821,47 @@ function getPersonaColor(nombre){
   var key=nombre.toUpperCase().trim();
   if(!personaColors[key]){ personaColors[key]=colorPalette[colorIndex%colorPalette.length]; colorIndex++; }
   return personaColors[key];
+}
+
+function actualizarColores(){
+  // Detectar personas del guión actual (del sc)
+  var personas = [];
+  var seen = {};
+  document.querySelectorAll('.bloque .quien').forEach(function(el){
+    var nombre = el.textContent.trim().toUpperCase();
+    var especiales = ['PUNTO','ACUERDO','PARTIDA'];
+    var esEsp = especiales.some(function(e){ return nombre.startsWith(e); });
+    if(!esEsp && !seen[nombre]){ seen[nombre]=true; personas.push(nombre); }
+  });
+  var container = document.getElementById('coloresPersonas');
+  if(!container) return;
+  if(personas.length === 0){
+    container.innerHTML = '<div style="color:#555;font-size:11px;">Aplica el guión primero para ver personas</div>';
+    return;
+  }
+  container.innerHTML = '';
+  personas.forEach(function(nombre){
+    var col = getPersonaColor(nombre);
+    var label = document.createElement('label');
+    label.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:8px;color:#ccc;font-size:12px;';
+    label.textContent = nombre;
+    var inp = document.createElement('input');
+    inp.type = 'color';
+    inp.value = col;
+    inp.style.cssText = 'width:36px;height:28px;border:none;cursor:pointer;flex-shrink:0;';
+    inp.setAttribute('data-persona', nombre);
+    inp.oninput = function(){
+      personaColors[nombre] = this.value;
+      // Aplicar color a todos los .quien con ese nombre
+      document.querySelectorAll('.bloque .quien').forEach(function(el){
+        if(el.textContent.trim().toUpperCase() === nombre){
+          el.style.color = inp.value;
+        }
+      });
+    };
+    label.prepend(inp);
+    container.appendChild(label);
+  });
 }
 
 // ══════════════════════════════════════════
@@ -870,6 +953,8 @@ function applyEdit(){
       console.warn('[TELE] No hay parent/top distinto, sin iframe');
     }
   } catch(e2) { console.error('[TELE] postMessage error:', e2); }
+  // Actualizar colores en panel si está abierto
+  actualizarColores();
   // 4. Feedback visual sin cerrar el editor
   var btn=document.getElementById('editApplyBtn');
   if(btn){
