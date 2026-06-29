@@ -1275,20 +1275,30 @@ function wsConnect(){
         }
         // Comandos del remote
         var action = msg.cmd || msg.action || '';
-        console.log('[WS] Recibido:', action, msg);
         if(action === 'toggle'){ togglePlay(); wsSendState(); }
         else if(action === 'up') goUp();
         else if(action === 'down') goDown();
-        else if(action === 'stop') stopFn();
-        else if(action === 'speed'){
-          // remote envía action:'speed' con el valor en msg.speed
-          if(msg.speed) spd = parseInt(msg.speed);
+        else if(action === 'stop'){ stopFn(); wsSendState(); }
+        else if(action === 'restart'){ stopFn(); pos=0; sc.style.transform='translateY(0)'; wsSendState(); }
+        else if(action === 'zoom_in'){ if(typeof zoomTxt==='function') zoomTxt(4); }
+        else if(action === 'zoom_out'){ if(typeof zoomTxt==='function') zoomTxt(-4); }
+        else if(action === 'crono_toggle'){ togCrono(null); }
+        else if(action === 'crono_reset'){ cronoSecs=0; document.getElementById('cronoTime').textContent='00:00:00'; }
+        else if(action === 'reloj_toggle'){ togEl('reloj',null); }
+        else if(action === 'panel_toggle'){ togglePanel(); }
+        else if(action && action.indexOf('speed:')===0){
+          spd=Math.max(1,Math.min(10,parseInt(action.split(':')[1])||spd));
           var sl=document.querySelector('#bar input[type=range]'); if(sl) sl.value=spd;
           document.getElementById('spdv').textContent=spd;
-          wsSendState();
         }
-        else if(action === 'speed_up' || action === 'faster'){ spd=Math.min(10,spd+1); var sl=document.querySelector('#bar input[type=range]'); if(sl) sl.value=spd; document.getElementById('spdv').textContent=spd; wsSendState(); }
-        else if(action === 'speed_down' || action === 'slower'){ spd=Math.max(1,spd-1); var sl=document.querySelector('#bar input[type=range]'); if(sl) sl.value=spd; document.getElementById('spdv').textContent=spd; wsSendState(); }
+        else if(action && action.indexOf('bg:')===0){
+          var col=action.substring(3); if(col) setBg(col);
+        }
+        else if(action === 'speed'){
+          if(msg.speed) spd=parseInt(msg.speed);
+          var sl=document.querySelector('#bar input[type=range]'); if(sl) sl.value=spd;
+          document.getElementById('spdv').textContent=spd;
+        }
       } catch(err){}
     };
     wsConn.onclose = function(){
