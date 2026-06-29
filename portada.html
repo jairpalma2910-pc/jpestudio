@@ -405,6 +405,15 @@ window.addEventListener('load', function() {
     var el = document.querySelector(sel);
     if (el) el.addEventListener('click', function() { lastClickedText = sel; });
   });
+
+  // Aplicar estado pendiente si llegó antes de que cargara
+  if (window.__pendingEstado) {
+    applyEstado(window.__pendingEstado);
+    window.__pendingEstado = null;
+  }
+  // Avisar al padre que la portada está lista para recibir estado
+  try { window.parent.postMessage({ type: 'portada_ready' }, '*'); } catch(e) {}
+  try { window.top.postMessage({ type: 'portada_ready' }, '*'); } catch(e) {}
 });
 
 function applySwatchText(color) {
@@ -714,81 +723,55 @@ function togglePanel() {
   document.getElementById('editPanel').classList.toggle('hidden');
 }
 
-// ══ MODO PRESENTAR: controles de teclado ══
+// ══ MODO PRESENTAR: drag de elementos ══
 var presentMode = false;
-var bgPalette = ['#6B1020','#500e18','#8B1A2A','#000000','#1a1a1a','#1A4A6B','#1B4D3E','#2a0a3a','#3a2a00','#ffffff'];
-var bgIndex = 0;
-var logoDragActive = false, ldx=0, ldy=0, ldEl=null;
 
 function initPresentMode(){
   presentMode = true;
-  // Detectar color actual en la paleta
-  var curBg = document.body.style.background || '#6B1020';
-  var found = bgPalette.indexOf(curBg);
-  if(found >= 0) bgIndex = found;
-
-  // Logo arrastrable en presentar
-  var lw = document.querySelector('.logo-wrapper');
-  if(lw){
-    lw.style.cursor = 'grab';
-    lw.addEventListener('mousedown', function(e){
-      ldEl = lw;
-      var r = lw.getBoundingClientRect();
-      ldx = e.clientX - r.left;
-      ldy = e.clientY - r.top;
-      logoDragActive = true;
-      lw.style.cursor = 'grabbing';
+  // Activar drag en modo presentar para logo y textos
+  // Reusar el sistema de drag del editor (var dragging, offX, offY)
+  // pero sin necesitar editMode=true
+  var dragSels = ['.logo-wrapper', '.session-number', '.session-title', '.session-sub'];
+  dragSels.forEach(function(sel){
+    var el = document.querySelector(sel);
+    if(!el) return;
+    // Asegurar posición fixed
+    if(!el.style.left){
+      var r = el.getBoundingClientRect();
+      el.style.position = 'fixed';
+      el.style.left = r.left + 'px';
+      el.style.top = r.top + 'px';
+    }
+    el.style.cursor = 'grab';
+    el.style.userSelect = 'none';
+    el.addEventListener('mousedown', function(e){
+      dragging = el;
+      var r = el.getBoundingClientRect();
+      offX = e.clientX - r.left;
+      offY = e.clientY - r.top;
+      el.style.cursor = 'grabbing';
+      el.style.zIndex = '9990';
       e.preventDefault();
+      e.stopPropagation();
     });
-  }
-  document.addEventListener('mousemove', function(e){
-    if(!logoDragActive || !ldEl) return;
-    ldEl.style.left = (e.clientX - ldx) + 'px';
-    ldEl.style.top  = (e.clientY - ldy) + 'px';
-    ldEl.style.position = 'fixed';
-  });
-  document.addEventListener('mouseup', function(){
-    if(ldEl) ldEl.style.cursor = 'grab';
-    logoDragActive = false;
+    // Touch support
+    el.addEventListener('touchstart', function(e){
+      dragging = el;
+      var r = el.getBoundingClientRect();
+      offX = e.touches[0].clientX - r.left;
+      offY = e.touches[0].clientY - r.top;
+      el.style.zIndex = '9990';
+    }, {passive:true});
   });
 
-  // Teclado
-  document.addEventListener('keydown', function(e){
-    if(!presentMode) return;
-    // ← → cambiar fondo
-    if(e.code === 'ArrowLeft'){
-      bgIndex = (bgIndex - 1 + bgPalette.length) % bgPalette.length;
-      changeBg(bgPalette[bgIndex]);
-      showHint('Fondo: ' + bgPalette[bgIndex]);
-    } else if(e.code === 'ArrowRight'){
-      bgIndex = (bgIndex + 1) % bgPalette.length;
-      changeBg(bgPalette[bgIndex]);
-      showHint('Fondo: ' + bgPalette[bgIndex]);
-    }
-    // ↑ ↓ cambiar tamaño del logo
-    else if(e.code === 'ArrowUp'){
-      var lw = document.querySelector('.logo-wrapper');
-      if(lw){ var w = parseInt(lw.style.width)||300; var nw=Math.min(800,w+20); lw.style.width=nw+'px'; showHint('Logo: '+nw+'px'); }
-    } else if(e.code === 'ArrowDown'){
-      var lw = document.querySelector('.logo-wrapper');
-      if(lw){ var w = parseInt(lw.style.width)||300; var nw=Math.max(80,w-20); lw.style.width=nw+'px'; showHint('Logo: '+nw+'px'); }
-    }
+  document.addEventListener('touchmove', function(e){
+    if(!dragging || !presentMode) return;
+    dragging.style.left = (e.touches[0].clientX - offX) + 'px';
+    dragging.style.top  = (e.touches[0].clientY - offY) + 'px';
+  }, {passive:true});
+  document.addEventListener('touchend', function(){
+    if(dragging){ dragging.style.cursor='grab'; dragging.style.zIndex='10'; dragging=null; }
   });
-}
-
-var hintTimer = null;
-function showHint(txt){
-  var h = document.getElementById('presentHint');
-  if(!h){
-    h = document.createElement('div');
-    h.id = 'presentHint';
-    h.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:#C9A84C;font-size:18px;font-family:Arial;font-weight:bold;padding:10px 24px;border-radius:8px;z-index:9999;pointer-events:none;transition:opacity 0.3s;';
-    document.body.appendChild(h);
-  }
-  h.textContent = txt;
-  h.style.opacity = '1';
-  clearTimeout(hintTimer);
-  hintTimer = setTimeout(function(){ h.style.opacity='0'; }, 1500);
 }
 </script>
 
@@ -888,13 +871,11 @@ window.addEventListener('message', function(e) {
   // Cargar estado guardado
   if (e.data && e.data.type === 'load_portada') {
     var estado = e.data.estado;
-    // Esperar a que el DOM esté completamente listo
     if (document.readyState === 'complete') {
       applyEstado(estado);
     } else {
-      window.addEventListener('load', function() {
-        setTimeout(function(){ applyEstado(estado); }, 100);
-      }, { once: true });
+      // Guardar el estado pendiente y aplicar cuando cargue
+      window.__pendingEstado = estado;
     }
   }
   // Modo presentación: ocultar controles
