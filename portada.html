@@ -542,7 +542,11 @@ function changeLogo(input) {
   var reader = new FileReader();
   reader.onload = function(e) {
     var img = document.querySelector('.logo-wrapper img');
-    if (img) img.src = e.target.result;
+    if (img) {
+      img.src = e.target.result;
+      // Guardar en variable global para que getEstado lo capture
+      window.__logoSrc = e.target.result;
+    }
   };
   reader.readAsDataURL(file);
 }
@@ -778,13 +782,7 @@ function getEstado(){
     dragonOp: (function(){ var el=qel('.dragon1'); return el?(el.style.opacity||'0.22'):'0.22'; })(),
     logoSize: lw?(lw.style.width||''):'',
     logoOp:   li?(li.style.opacity||'1'):'1',
-    logoSrc:  (function(){ 
-      if(!li) return '';
-      var src=li.getAttribute('src')||'';
-      // Solo guardar si es una imagen subida (data URL) y no demasiado grande
-      if(src.startsWith('data:') && src.length < 500000) return src;
-      return '';
-    })(),
+    logoSrc: (window.__logoSrc || ''),
     positions: poss
   };
 }
