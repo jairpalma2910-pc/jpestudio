@@ -778,6 +778,13 @@ function getEstado(){
     dragonOp: (function(){ var el=qel('.dragon1'); return el?(el.style.opacity||'0.22'):'0.22'; })(),
     logoSize: lw?(lw.style.width||''):'',
     logoOp:   li?(li.style.opacity||'1'):'1',
+    logoSrc:  (function(){ 
+      if(!li) return '';
+      var src=li.getAttribute('src')||'';
+      // Solo guardar si es una imagen subida (data URL) y no demasiado grande
+      if(src.startsWith('data:') && src.length < 500000) return src;
+      return '';
+    })(),
     positions: poss
   };
 }
@@ -808,6 +815,7 @@ function applyEstado(st){
   var lw2=qel('.logo-wrapper'),li2=qel('.logo-wrapper img');
   if(st.logoSize && lw2) lw2.style.width=st.logoSize;
   if(st.logoOp   && li2) li2.style.opacity=st.logoOp;
+  if(st.logoSrc  && li2 && st.logoSrc.length>10) li2.src=st.logoSrc;
   if(st.positions){
     var allSels=['.session-number','.logo-wrapper','.divider','.line-bottom','.session-title','.session-sub'];
     allSels.forEach(function(sel){
